@@ -1,0 +1,1333 @@
+%%=====================================================================
+%% Multiversion Index Structures
+%%=====================================================================
+\chapter{Multiversion Index Structures}
+\label{chapter:mv-index}
+
+We have now discussed the theory behind temporal databases, concentrating
+mostly on multiversion databases.
+In this chapter, we describe some of the index structures used in
+multiversion databases.
+We begin the chapter by defining a few general properties of multiversion
+index structures in \secref{sec:mv-index:properties}. 
+In \secref{sec:mv-index:btree}, we will demonstrate that a single-version
+index is not an efficient structure for indexing multiversion data. 
+To be able to properly determine the efficiency of multiversion index
+structures, \secref{sec:mv-index:optimality} defines what we mean by an
+optimal multiversion index structure, and \secref{sec:mv-index:common} lists
+common design ideas used in efficient multiversion indexes.
+In \secref{sec:mv-index:early}, we describe some of the early multiversion
+index structures.
+For a comprehensive presentation and comparison of different multiversion
+access methods, the reader is referred to Salzberg and
+Tsotras~\cite{salzberg:1999:comparison}, and \sic{Özsoyo{\v g}lu} and
+Snodgrass~\cite{ozsoyoglu:1995:survey}.
+The rest of this chapter is dedicated to different kinds of
+structures that have been used to index multiversion data or are
+otherwise related: spatial indexes~(\secref{sec:mv-index:spatial}), hashing
+structures~(\secref{sec:mv-index:hashing}), version-control
+systems~(\secref{sec:mv-index:vcs}), and
+other structures~(\secref{sec:mv-index:other}).
+
+
+%% Properties of Multiversion Indexes
+%%---------------------------------------------------------------------
+\section{Properties of Multiversion Indexes}
+\label{sec:mv-index:properties}
+
+To begin, let us define what we mean by a multiversion index structure:
+
+\thmskip
+\begin{definition}
+\label{def:mv-index}
+A \emph{multiversion index structure} is a transaction-time index 
+that is partially persistent and enables efficient \qtype{$x$/$-$/point}
+queries on the data items, where~$x$ is either \qtype{point}, \qtype{range},
+or~$*$.
+The index is a collection of nodes that forms a tree or a directed acyclic
+graph (DAG\phantomsection\label{def:dag})\@.
+The nodes of the graph are fixed-size database pages.
+The graph contains one or possibly many \emph{root pages}, which
+serve as starting points for search operations.
+Pages that have child pages are called \emph{index pages} or \emph{parent
+pages}, and pages that do not have child pages are called \emph{leaf pages}.
+Each page contains \emph{entries} that represent either data items~(called
+\emph{data entries}, see \defref{def:mv-item}) or routers to child pages
+(called \emph{index entries}). 
+Page capacity \capacity\phantomsection\label{def:capacity} tells how
+many entries fit into the page. 
+The capacity is dictated by the entry format and the page size, but for the
+simplicity of the theoretical discussion, we assume that the page
+capacity~\capacity\ is the same for all index and leaf pages. 
+The data entries stored in the index may contain either the actual data
+stored with the key (the row in the relation), in the case of a \emph{primary}
+or \emph{sparse index}; or a pointer to a separate storage location, in the
+case of a \emph{secondary} or \emph{dense index}.  
+\end{definition}
+\thmskip
+
+The multiversion index structure defines the way the data items are stored
+and accessed.
+Similar to the \Btree, most often the index pages of a multiversion
+index contain only index entries, and the leaf pages contain only data
+entries. 
+Searches in a multiversion index follow the same logic as searches in a
+single-version index structure: each node has a number of child nodes, and
+each child page covers a more restricted area of the search space.
+The search spaces of sibling pages usually do not overlap, but there are
+exceptions.
+In a multiversion index, the search space is the key-version space. 
+Each page thus covers a region in key-version space. 
+If the multiversion index contains a single root page, then  that root page
+covers the entire key-version space.
+A child page's search-space region overlaps with the parent page's region,
+and often the child page's region is a subset of the parent page's region.
+A key~$k$ that is part of version~$v$ (alive at version $v$) is located at
+the leaf page whose key-version region covers the key-version
+coordinate~$(k, v)$.
+
+In multiversion index structures, the most important property to optimize is
+the number of pages that an action needs to read or write to perform an
+action, because \abbr{I/O} operations on disk storage are still the most
+significant bottleneck in most database
+applications~\cite{kanellakis:1996:indexing}. 
+A good index structure requires a minimal number of page accesses for its 
+actions. 
+If a search operation on a database index requires access to $m$ pages to
+locate key~$k$, then $m$ is normally logarithmic in the number of data
+items indexed by the structure, if the index is a tree structure.
+For analyzing the performance of index structures, we define the cost of an
+action:
+
+\thmskip
+\begin{definition}
+\label{def:action-cost}
+The \emph{cost} of an action or an operation is the number of 
+index-structure pages the action needs to access (read and/or write).
+In the case of a sparse index, this includes all the pages the actions
+need to access.
+In the case of a dense index, this includes only the pages of the index
+structure itself, and not the data pages that may need to be accessed
+additionally for each data item.
+\end{definition}
+\thmskip
+
+
+
+%% Versioned B-tree
+%%---------------------------------------------------------------------
+\section{Versioned \Btree}
+\label{sec:mv-index:btree}
+
+The
+B-tree~\cite{bayer:1972:btree,bayer:1977:btree-concurrency,comer:1979:btree}
+is a widely used search tree structure that is optimized for use as a database
+index structure. 
+% The difference to other search trees is that 
+A single node of the B-tree is stored in a single database page.
+Each database page is designed to fit in a single disk block (or a fixed
+number of consecutive blocks), so that reading and writing database pages is
+as efficient as possible with the underlying storage medium.
+Because disk block sizes range from
+\SIrange{4}{64}{\kibi\byte}~\cite{shao:2004:clotho}, the nodes of the B-tree
+have a huge number of children, ranging from hundreds to even thousands.
+For example, if a \SI{4}{\kibi\byte} index page contains index entries that
+consist of a four-byte key separator and a four-byte child page identifier,
+the page can contain in the excess of \num{500}~entries; an
+\SI{8}{\kibi\byte} page can contain a thousand index entries, and so on.
+The fan-out of a B-tree is therefore high, and the trees tend to be very low.
+There are typically only three to five pages on a path from the root to a
+leaf page in even a very large database system.
+ 
+The most widely used variant of the B-tree is the \Btree, which stores
+data entries only in leaf nodes.
+The index nodes of a \Btree\ thus contain only index entries.
+%, as noted in the introduction to this chapter. 
+The leaf pages of a \Btree\ index are at level one, and index pages are 
+at consecutively higher levels.
+The height of the \Btree\ is the level of its root
+page\footnote{There are overlapping definitions for tree height and
+page levels; we adopt the convention used by Bayer~\cite{bayer:1972:btree}
+because it seems most natural.}\phantomsection\label{def:tree-height}.
+With this convention, 
+an empty \Btree\ has a height of zero (no pages allocated\footnote{For
+practical efficiency reasons, an empty root page might need be kept allocated
+for an empty \Btree\ index.});
+a single leaf-page root page forms a \Btree\ of height one; 
+and a \Btree\ with $n$~levels of index pages and a single level of leaf pages
+forms a \Btree\ of height~$n+1$. 
+A standard \Btree\ index stores entries of the form $(k, w)$ in its leaf
+pages and entries of the form $(k, p)$ in its index pages, where $k$ is the
+data item key, $w$ is the data value, and $p$ is the page identifier of a
+child page that resides at the next lower level.
+The key~$k$ used in the index entries is also called a \emph{router} that
+directs the search to the correct child page.
+The data value $w$ is either the value itself, in the case of a sparse
+index; or a pointer to where the data is stored (a record identifier of the
+data), in the case of a dense index. 
+The entries are ordered by the key~$k$.
+An update on a data item in a standard \Btree\ is performed by physically
+deleting the old entry from the index, and by inserting a new entry to
+replace the old one. 
+No version history is recorded in a \Btree.
+However, with a slight modification to the entry structure we can record the
+history of data-item changes in the \Btree\ index.
+
+As discussed in \secref{sec:mv-data:mv-data}, multiversion data items
+are tuples of the form $(k, \vrmark{v}, w)$, where $\vrmark{v}$ is the life
+span of the data item.
+Furthermore, the data items can be uniquely identified by the key-version
+pair $(k, v_1)$, when $\vrmark{v} = [v_1, v_2)$.
+An update to a database index is logically either a key insertion or
+update (a write action), or a key deletion (a delete action); recall the
+update model from \secref{sec:mv-data:updating-tx}.
+The multiversion history can thus be stored in a \Btree\ index if we simply
+change the data entry format to $(k, v_1, w)$ for a write action and $(k, v_2,
+\deletemark)$ for an item deletion.
+The version $v_1$ represents the commit-time version of the
+transaction that inserted the new value $w$, and $v_2$ represents the
+commit-time version of the transaction that performed the deletion.
+In this convention, each deleted multiversion data item (i.e., a multiversion
+data item with a life span $\vrmark{v} = [v_1,v_2) : v_2 \neq \infty$) is
+represented by two entries: one marking the insertion of the multiversion
+data item, and one the deletion or updation of the item.
+We call this extended \Btree\ structure the \emph{versioned \Btree},
+or VBT\phantomsection\label{def:vbt} for short.
+The entries in a VBT are ordered first by the keys, and then by the
+versions, so that $(k, v, w) < (k', v', w')$ if either $k < k'$ or
+$k = k' \wedge v < v'$.
+This defines a total ordering, because entries are uniquely identified by the
+pair $(k, v)$, so that no two updates can have the same key and version.
+
+Because the entries are now ordered by the key-version pairs $(k, v)$, the
+index entries in index pages need to reflect this.
+The index entries of a VBT are therefore of the form $(k, v, p)$, where
+$p$ is the identifier of a child page.
+As with a \Btree, the $(k, v)$ pairs in index entries are separator values
+that are used to direct searches.
+If an index page contains $n$ entries $(k_i, v_i, p_i)$, with $i \in
+\{1,2, \ldots, n\}$, and $(k_j, v_j) \leq (k, v) < (k_{j+1}, v_{j+1})$, then   
+the page identifier $p_j$ is the identifier of the child page whose
+key-version range contains the entry $(k, v)$.
+%The operator $\leq$ is defined as 
+We define $(k, v) \leq (k',v')$ if either $(k, v) < (k',v')$ or $k = k'
+\wedge v = v'$.
+The key-version pair $(k_i, v_i)$ in an index entry thus defines a
+lower limit for key-version pairs in the child page pointed to by the index
+entry, and the key-version pair $(k_{i+1}, v_{i+1})$ in the next entry
+defines the upper limit.
+This could as well be defined the other way around, so that the key-version
+separator value stored with an index entry defines the upper limit for the
+page pointed to by that entry; and the separator value stored in the previous
+entry defines the lower limit.
+
+Searching for a single key~$k$ at version~$v$ in the VBT is performed by
+locating the entry $(k, v', \updatemark)$ with the largest $v'$ such that $v'
+\leq v$. 
+If no such entry is found, or if $\updatemark = \deletemark$, then the query
+should return $\nullmark$ to indicate that no entry for the given key at the
+given version exists in the database.
+Otherwise, the query returns the value~$\updatemark$.
+Because all the versions of the data items are stored in the same index tree,
+%the length of the history affects the number of pages that the search needs
+%to process.
+the cost of a single-key retrieval, write, or delete action is 
+\OhT{\log_{\capacity} m} pages, where~$m$ is the total number of entries
+stored in the VBT\@.
+This holds regardless of the version that is queried.
+Let us denote by $\entries{v}$\phantomsection\label{def:entries} the number
+of data items that are alive at version~$v$. 
+Note that $\entries{v}$ might be significantly smaller than $m$, if the
+database history contains many deletions.
+Early versions may also contain very few live data items.
+However, because even large \Btree{}s tend to be low in height, this access
+cost is usually acceptable.
+
+The problematic operation in the VBT is the range query operation.
+An efficient range query in a single-version \Btree\ index needs to process 
+\OhT{\log_\capacity m + r/\capacity} \Btree\ index pages, where $m$~is the
+number of entries stored in the index, and $r$~is the number of data items
+in the queried range. 
+This is because data item entries that are next to each other in the key
+dimension are stored next to each other in the leaf pages and each leaf page
+contains \OhT{\capacity} entries.
+\Btree{}s can generally guarantee a minimum number of
+entries per page, such as $\nicefrac{\capacity}{3}$, for example.
+% Another variant of the B-tree, the \Blinktree, has links between sibling
+% pages so that all consecutive leaf pages can be traversed through the links
+% without backtracking through the index pages, so that only the
+% \OhT{r/\capacity} leaf pages need to be accessed.
+Most of the \Btree\ implementations have the leaf-page level siblings linked 
+to enhance range queries, so the range can be scanned without backtracking
+to index pages once the other end of the range is located.  
+However, even backtracking the search through index pages to locate all the
+leaf pages requires access to only \OhT{r/\capacity} pages, since the
+number of leaf pages is asymptotically much higher than the number of index
+pages required to index them (see proof below).
+
+\thmskip
+\begin{theorem}
+\label{thm:btree-range-cost}
+Locating the $r$ entries in a queried range $[k_1, k_2)$ in a \Btree\ index 
+requires access to $\OhT{\log_\capacity m + r/\capacity}$ \Btree\ pages,
+where $r$ is the number of entries in the queried range $[k_1, k_2)$, and $m$
+is the number of entries stored in the index structure.
+\end{theorem}
+\begin{proof}
+Because each index page in a \Btree\ has a fan-out of \OhT{\capacity}, and
+all the root-to-leaf paths are of the same length, the height of the \Btree\
+index is \OhT{\log_\capacity m}. 
+This explains the logarithmic part $\log_\capacity m$ of the costs, as the
+search tree must be traversed from the root to the correct leaf node to
+locate key~$k_1$.
+The $r$~entries returned by the query require \OhT{r/\capacity} pages
+to store them, which gives the second part of the cost.
+If the index has direct links between sibling pages (like the \Blinktree),
+then the pages can be directly traversed, and the proof is complete.
+If there are no sibling links, the leaf pages must be located by backtracking
+through the index pages, resulting in additional page accesses.
+The number of index pages required to locate the leaf pages is however
+asymptotically smaller than the number of leaf pages indexed by the index
+pages; with the possible exception of an extra root-to-leaf traversal of the
+entire index.
+This result is proven by, for example, Brown and
+Tarjan~\cite{brown:1980:sorted-lists} in a more general form.
+We formulate a short proof for this result here.
+In each index page at level~$l+1$ (except for the leftmost
+and rightmost index pages), the search will locate and use at least
+\OhT{\capacity} pointers to pages at level~$l$.
+Thus, to locate all $n = \OhT{r/\capacity}$ leaf pages, at most
+\OhT{\log_\capacity n} pages at level two need to be processed.
+Similarly, only \OhT{\log_\capacity \log_\capacity n} pages at level three
+need to be processed.
+In general, exponentially fewer pages are required at each higher level,
+and the sum of all the required pages is bounded from the above by the
+power series of \nicefrac{1}{2} times $n$, which in turn converges to
+$2 n$ = \OhT{n} = \OhT{r/\capacity}.
+% Therefore, for a search tree of height~$k$, the number of pages that need
+% to be processed is at most:
+% \begin{align*}
+% n + \log_\capacity n + \log_\capacity \log_\capacity n + \cdots +
+% \underbrace{\log_\capacity \cdots \log_\capacity}_{k-1} n &\leq \\
+% n + \frac{n}{2} + \frac{n}{2^2} + \cdots + \frac{n}{2^{k-1}} &\leq 2n =
+% \OhT{n}
+% \end{align*}
+% The inequality holds, because the base of the logarithm $\capacity$ is larger
+% than two.
+% Each term in the formula is therefore at most half of the previous term, and
+% the entire formula is bounded from above by the power series of \num{1/2},
+% which in turn converges to \num{2}.
+% Therefore processing the index pages does not add any asymptotic overhead to
+% the leaf-page traversal.
+Furthermore, while the leftmost index pages at each level might contain
+fewer than \OhT{\capacity} entries that are relevant to the query (and
+similarly for the rightmost index pages), if we reserve two extra pages for
+each level, these are accounted for. 
+Because the initial traversal from the root page to the leftmost leaf page
+has already added an asymptotic cost of one page for each level, these extra
+pages reserved for each level do not add to the asymptotic cost of the range
+query.
+\end{proof}
+\begin{corollary}
+\label{cor:vbt-not-clustered}
+In the VBT, the entries are not clustered next to each other by the key
+values---the different versions of these entries are in the way.
+The only guaranteed cost limit for a key-range query of the range $[k_1,
+k_2)$ in a VBT index is of the form \OhT{\log_\capacity m + (n \times
+\entries{k}) / \capacity}, where $m$ is the number of entries in the entire
+index, $n$ is the number of versions in the database history, and
+$\entries{k}$ is the maximum possible amount of discrete keys in the queried
+range (for databases that store integer keys, $\entries{k} = k_2 - k_1$).
+\end{corollary}
+\thmskip
+
+\corollaryref{cor:vbt-not-clustered} implies that in the worst case, there
+are $n$ different versions of each data item in the range, and they must all
+be scanned to find the relevant entries.
+Note that this does not have anything to do with the size of the
+result set of the query---none of the records in the range need to be alive
+at the queried version, resulting in an empty answer set to the query.
+Thus, the VBT is not sufficient for use as a multipurpose multiversion
+database index structure.
+
+
+%% Asymptotic Optimality
+%%---------------------------------------------------------------------
+\section{Asymptotic Optimality}
+\label{sec:mv-index:optimality}
+
+As we saw in the previous section, the \Btree\ index is not efficient when
+used as a multiversion index structure.
+To properly categorize the efficiency of index structures, let us now define
+what the action costs of an optimal index structure are.
+When designing a dynamic index structure where item search is based on
+the comparison of key values, and the items are ordered, the minimum number
+of key comparisons required for the search is \OhT{\log_2 m}, when the
+structure contains $m$ entries.
+This can be achieved, for example, with a binary search tree. 
+Similarly, the minimum number of key comparisons for locating a range
+of entries is \OhT{\log_2 m + r}, if we do not assume that the $r$ entries of
+the queried range are stored in consecutive storage locations so that it would
+suffice to locate only the storage locations of the range endpoints.
+
+% \thmskip
+% \begin{definition}
+% \label{def:optimal-snapshot}
+% A general-purpose snapshot index structure is \emph{asymptotically optimal},
+% if all the action costs are logarithmically dependent in the number of
+% indexed items.
+% In more detail, all single-key user actions (item retrieval, item write, and
+% item deletion) must have a cost of at most 
+% $c_1 = \Oh{\log_{\capacity} m}$ index pages, where $m$ is the number of data
+% items indexed by the index structure, and \capacity\ is the page capacity. 
+% Additionally, the key-range-query action must have a cost of at most 
+% $c_2 = \Oh{\log_{\capacity} m + r/\capacity}$ index pages, where $r$ is the
+% number of data items returned by the range query.
+% \end{definition}
+% \thmskip
+
+As we have shown in the previous section, the \Btree\ is an optimal
+snapshot index structure that achieves these bounds, although in the case of
+database tree structures, we are calculating the number of page accesses
+instead of item value comparisons.
+If we wish to consider the number of key value comparisons in a \Btree, note
+that a single-key search in a \Btree\ index requires access to 
+\OhT{\log_\capacity m} pages, as shown in \secref{sec:mv-index:btree}, where
+\capacity\ is the page capacity and $m$ is the number of entries stored in
+the index.
+Because each page contains at most \capacity\ entries, at most \OhT{\log_2
+\capacity} key value comparisons need to be performed for each page if the
+entries of the page are ordered.
+The total number of key comparisons is thus \OhT{\log_2 \capacity
+\log_\capacity m}.
+Once the page capacity~\capacity\ is fixed, the term $\log_2 \capacity$
+becomes a constant, and can be omitted from the asymptotic analysis.
+
+% Note that there are index structures that can be used to perform some of
+% the operations more efficiently. 
+%(such as hashing
+% structures~\cite{kollios:2002:hashing}, for which the single-key query
+% cost is only \Oh{1} pages). 
+% However, in these structures some of the other actions (such as key-range
+% queries) cannot be performed efficiently.
+% Thus, this definition of optimality is justified, in our opinion,
+% for a general-purpose database index structure.
+
+Based on the discussion above, we formally define the requirement for
+optimality in a multiversion database index structure:
+
+\thmskip
+\begin{definition}
+\label{def:optimal-mv} 
+A general-purpose multiversion database index structure is
+\emph{optimal}, if the action costs are logarithmically
+dependent in the number of data items alive at the queried version. 
+More specifically, the corresponding action costs must be at most 
+$c_1 = \Oh{\log_{\capacity} \entries{v}}$ pages of the index structure for
+single-key actions and $c_2 = \Oh{\log_{\capacity} \entries{v} +
+r/\capacity}$ pages of the index structure for the range-query action in the
+worst case, where $\entries{v}$~is the number of data items that are alive at
+the queried version~$v$.
+\end{definition}
+\thmskip
+
+An optimal multiversion index structure must be as efficient as an optimal
+single-version index structure that only indexes the data items alive at the
+queried version.
+The definition presented here is the same as the definition of Becker
+et~al.~\cite{becker:1996:mvbt,becker:1993:optimal}, and stricter than the one
+assumed by Varman and Verma~\cite{varman:1997:multiversion}, in which the
+logarithms are taken from the total number of updates performed to the index
+structure, instead of the total number of entries that are alive at the queried
+version.
+% The definitions converge when querying for the latest version, if the
+% database history only contain new item insertions, because then the number of
+% live items at a version~$v$ equals the number of updates performed before
+% version~$v$.
+
+In practice, the index structure must also be able to index multiple
+data items that receive the same version, corresponding to multiple
+data items inserted or deleted by the same transaction.
+We naturally also require that the structural consistency of the index must
+be preserved in the presence of multiple updating transactions.
+The logical key-level consistency of the index, and of the set of data items
+themselves, is assumed to be preserved by using an appropriate multiversion
+concurrency-control algorithm, such as snapshot
+isolation~\cite{berenson:1995:sql-critique} (see \secref{sec:mv-data:cc}).
+These are practical requirements that are necessary for the index to be
+useful in a modern multi-user database environment.
+
+
+%% Common Multiversion Index Design
+%%---------------------------------------------------------------------
+\section{Common Multiversion Index Design}
+\label{sec:mv-index:common}
+
+It is apparent that a specifically tailored structure is required for
+efficiently storing the history of data items.
+A common design in newer multiversion index structures is that each database
+page covers a region in key-version space, and that these regions at any
+level of the index do not overlap.
+The root page covers the entire key-version space, and each page lower
+in the index structure covers a smaller region. 
+These multiversion index structures are often directed acyclic
+graphs, rather than trees, and child pages may have more than one parent
+page.
+
+An example of the difference between a single-version \Btree\ index and a
+common multiversion index structure design is shown in
+\figref{fig:sv-mv-index-comparison}.
+The figure also shows the key ranges (or regions of key-version
+space) covered by each page, and an example of the search tree of a
+single version is shown for the multiversion index structure.
+In this multiversion index structure, there is a unique \emph{search tree}
+for each version of the database.
+This concept is defined formally in \defref{def:search-tree} in
+page~\pageref{def:search-tree}. 
+The search trees of different versions of the database may share pages, as
+shown by the leaf page~$p_5$ in the figure.
+The page~$p_5$ is shared by all the search trees, as indicated by its life
+span $[-\infty,\infty)$, and therefore it also has multiple parents so that
+it can be reached from each search tree.
+
+\begin{figure}[htb]
+\begin{center}
+\subfigure[A single-version \Btree\ index]{
+\input{images/btree-example}}
+\subfigure[A common design in multiversion indexes]{
+\label{fig:sv-mv-index-comparison:mv}
+\input{images/mv-example}}
+\figcaption{Comparison of single-version and multiversion indexes}{}
+\label{fig:sv-mv-index-comparison}
+\end{center}
+\end{figure}
+
+Because the pages of a multiversion index structure cover regions in
+key-version space instead of just key ranges, they can be split either by
+keys or by versions.
+These operations are generally called \emph{key split} and
+\emph{version split}, respectively.
+The main challenge in multiversion index structures is to design
+these operations so that the data is distributed in such a way that
+the operations remain efficient in the presence of varying histories
+of user actions.
+
+It is also important to merge pages to preserve data locality after key
+deletions. 
+It is true that entries are generally not physically removed from a
+multiversion index, because the history information must be
+preserved. 
+However, once a page $p$ is version-split into pages $p'$ and $p''$ using a
+version~$v$ as the separating version, so that the entries in $p'$
+have creation times (\defref{def:lifespan}) that precede the creation times
+in $p''$, the entries that have been logically deleted before~$v$ need not be
+present in page~$p''$, because the items represented by those entries are not
+alive at the versions following~$v$.
+For an example, suppose that a page in a multiversion database holds an entry
+created by a transaction with commit-time version $v_1$, and that this
+entry is later deleted by a transaction with version $v_2$.
+Page~$p$ is now version-split into a historical page~$p'$, and a current 
+page~$p''$.\footnote{Depending on the index structure, the physical
+page~$p$ will be reused as either~$p'$ or~$p''$.} 
+Now, page~$p'$ must hold the information of the insertion at $v_1$ and
+the deletion at $v_2$, but the new current page $p''$ does not need to
+contain any traces of the key~$k$, because $k$ is not alive at any version $v
+\geq v_3$ unless explicitly re-inserted into the database. 
+Key deletions may thus physically remove entries from new copies of old
+pages, and in this way the number of entries in the new pages may fall below
+the acceptable minimum so that a page merge is required.
+
+It may seem that the requirement for merging pages is critical only in the
+asymptotic sense, and not in practice, as the pages can still be
+version-split and reused for storing new data items.
+The fact is, however, that unless pages are merged, the key ranges they cover
+can only shrink, and never expand.
+Because the search tree of the current version must cover the entire key
+dimension, this means that the search tree of the current version cannot
+shrink unless pages are merged.
+
+Imagine now a warehouse inventory application for keeping track of the
+goods stored in the warehouse.
+The application creates a data item for each product stored in the warehouse.
+Each item is assigned an increasing integer identifier and stored in a
+multiversion database, indexed by the identifier. 
+As the database fills, pages are key-split and thus the leaf pages cover
+key-ranges that are close to the lower end of the integer key space.
+When the products are taken out of the warehouse, the data items are
+deleted.
+New items have increasing identifiers and are thus inserted to the leaf
+pages in the higher end of the key space.  
+Eventually, all the pages with lower key ranges contain only deleted
+entries, and all the live entries are clustered in the leaf pages with higher
+key ranges.
+Suppose that a reporting transaction performs a range query for the
+entire key range of the database. 
+The range query must scan through all the pages at the lower end of
+the key range that contain only deleted entries before it reaches the pages
+where the live entries are stored.
+The performance of the reporting process will only get worse as the database
+accumulates more historical entries, even if the database contains the
+same number of live entries.
+As shown here, it is important to guarantee that all pages that are part of
+the search tree of a version~$v$ contain enough entries that are alive at
+version~$v$ so that range queries that target version~$v$ are efficient.
+
+Merging pages can lead to a tree height decrease in a single-version index
+structure.
+In multiversion structures, the height of the entire index cannot
+decrease, because the heights of the version trees of historical versions
+must remain as they are. 
+The search trees of different versions can, however, be of varying heights.
+The MVBT~\cite{becker:1996:mvbt,becker:1993:optimal}, for example, has a
+separate structure called the \rootstar\ (see \defref{def:rootstar} below)
+that stores the page identifiers of the root pages of different versions. 
+%holds links to the root pages of different versions. 
+This is illustrated in \figref{fig:mv-height-decrease}.
+The \TSBtree~\cite{lomet:1989:tsb}, in contrast, has a single root
+and thus all the search trees of different versions are of the same
+height.
+
+\thmskip
+\begin{definition}
+\label{def:rootstar}
+A \rootstar\ is an auxiliary structure that can be used to efficiently
+retrieve the page identifiers of the root pages of different versions. 
+\end{definition}
+\thmskip
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mv-height-decrease}
+  \figcaption{Search trees of different heights}
+  {Search trees of different versions in a multiversion index can
+  have different heights.}
+  \label{fig:mv-height-decrease}
+\end{center}
+\end{figure}
+
+
+
+
+%% Early Multiversion Index Structures
+%%---------------------------------------------------------------------
+\section{Early Multiversion Index Structures}
+\label{sec:mv-index:early}
+
+The idea of storing historical versions in the database is not new.
+Overmars discussed general methods for making data structures persistent 
+in 1981~\cite{overmars:1981:search-past-i,overmars:1981:search-past-ii}, and
+the classification of the time concepts ranges back to the 
+mid-1980s~\cite{lum:1984:designing,snodgrass:1985:taxonomy,snodgrass:1986:temporal}.
+The earliest specifications used the term \emph{rollback database} when
+talking of multiversion databases (that is, transaction-time databases);
+\emph{historical database} when discussing valid-time databases; and
+\emph{temporal databases} when talking of bitemporal databases (see
+\secref{sec:mv-data:time} for current definitions of the time concepts).
+This section reviews some of the early index structures and the design ideas
+behind them.
+
+% Reverse chaining
+One of the earliest approaches to data persistence is \emph{reverse
+chaining}\phantomsection\label{def:reverse-chaining} that is used to chain
+the history of the data entries together. 
+Lum et~al.~\cite{lum:1984:designing} have described an index structure that
+uses a current version tree to index the current version, and a historical
+tree that is used to index historical versions. 
+Both trees contain pointers to a reverse-chained linked list of entry
+values, ordered by the update times, so that the latest version is at the
+start of the list.
+While both of these index structures may be efficient (optimal) B-trees, the
+number of updates on a data item directly affects the length of the
+version-history chain, and thus the query actions for previous versions on
+this index structure can have very high costs, especially for key-range
+queries.
+
+% Path copying
+Another technique used in early multiversion index structures is \emph{path
+copying}\phantomsection\label{def:path-copy}~\cite{sarnak:1986:persistent,soisalon-soininen:1999:full-text}.
+This method achieves persistence by creating copies of changed nodes, so that
+the old nodes are left untouched. 
+Because the new nodes need to be attached to parent nodes, and the
+original parent nodes cannot be changed, the entire path from
+the changed node up to the root node needs to be copied.
+This method therefore effectively creates a new path that can be used for
+current-version queries and retains the old path for historical queries. 
+Sarnak and Tarjan~\cite{sarnak:1986:persistent} describe how to make
+red-black trees~\cite{bayer:1972:red-black,guibas:1978:red-black} persistent
+by creating a new copy of the path along which a change has occurred.
+Search trees of different versions share common subtrees, and differ only
+on the single copied path.
+As the entire path is copied, a new root node is created for each update.
+Soisalon-Soininen and Widmayer also use path copying with \abbr{AVL}-trees to
+make the tree structure recoverable~\cite{soisalon-soininen:1999:full-text}.
+
+Because there are multiple roots, all the roots of different versions must be
+stored in some structure. 
+Sarnak and Tarjan~\cite{sarnak:1986:persistent} use an array of page
+identifiers, ordered by the creation time of the corresponding pages. 
+This array is essentially a \rootstar\ structure of 
+\defref{def:rootstar}.
+While this method is efficient for binary search trees, with a logarithmic
+cost of \OhT{\log_2 \entries{v}} pages for both updates and query operations,
+where \entries{v} denotes the number of entries that are alive at
+version~$v$, the method is not feasible for disk storage, because only a
+single entry is stored per node and each update requires \OhT{\log_2
+\entries{v}} space for the new copied path.
+Sarnak and Tarjan further enhance the space consumption of their method by
+allowing nodes to grow fat.
+% (see \defref{def:fat-node} below).
+A \emph{fat node} is a node that can contain an arbitrary number of
+entries; in this case, an arbitrary number of left and right pointers
+in the binary search tree, corresponding to paths in different versions. 
+The fat node can be implemented, for example, by chaining together a
+list of database pages.
+Path copying for each update can thus be avoided.
+However, the enhanced structure still stores only a single data-item entry in
+each node, so the approach remains unsuitable as a disk-based access method.
+
+% \thmskip
+% \begin{definition}
+% \label{def:fat-node}
+% A \emph{fat node} is a node that can contain an arbitrary number of entries.
+% The fat node can be implemented, for example, by chaining together a
+% list of database pages.
+% Traversing all the entries of a fat node implemented as a list of database
+% pages costs $\OhT{n/\capacity}$ \abbr{I/O} operations, where $n$ is the
+% number of entries stored in the fat node, and $\capacity$ is the page
+% capacity.
+% \end{definition}
+% \thmskip
+
+% Time sequences
+Shoshani and Kawagoe~\cite{shoshani:1986:temporal} have presented a
+more general framework for indexing data with different types of \emph{time
+sequences}. 
+A time sequence is the collection of changes associated with a data item.
+In our multiversion data item model, a data item has a life span during which
+it is alive, and any change to the data item creates a new data item (see
+\secref{sec:mv-data:mv-data}).
+In contrast, a time sequence records all the updates that target a single
+key. 
+A data item in Shoshani's and Kawagoe's framework is represented by
+a tuple $(k, S)$, where $S = \{(v_i, w_i) : i \in \{0, 1, \ldots, n-1\} \}$
+is the time sequence of the data item.
+An individual tuple $(v_i, w_i)$ of the time sequence denotes that the
+data item with the key~$k$ was assigned the value~$w_i$ at version~$v_i$. 
+
+Shoshani's and Kawagoe's framework furthermore identifies time sequences with
+different update patterns. 
+Item costs in a grocery store database, for example, have continuous,
+irregularly and step-wisely changing values, while the number of items sold
+is a discrete value that is measured at regular intervals.
+The dynamic index structures that Shoshani and Kawagoe propose assigns
+cells or database pages to data keys (surrogates). 
+As the pages fill up, new pages are linked to form a chain of pages.
+These pages are further indexed into an ordered list of pointers so that
+the entire structure is doubly indexed---first by the key attribute to locate
+the secondary index and then by the version to locate the correct page.
+Finally, the data page itself must be searched for the correct version.
+Single-key operations in these index structures have a logarithmic cost, but
+the constant overhead is high as there are multiple indexes that have to be
+traversed.
+Furthermore, the data items are not clustered on the key attribute, and
+key-range queries are thus inefficient.
+
+% WOBT
+Easton's \emph{write-once balanced tree}
+(\abbr{WOBT},~\cite{easton:1986:wobt}\phantomsection\label{def:wobt}) is
+a multiversion index structure that stores multiple versions of data
+items on indelible storage. 
+The structure can therefore be used with
+\abbr{WORM}\phantomsection\label{def:worm} (write once, read many) media.
+This index structure is based on the \Btree, but rather than overwriting old
+data, new versions are written next to the old ones.
+When pages fill up with different versions, a new copy is created and
+possibly split into two separate pages. 
+The old one, however, remains as it was.
+Root pages of the WOBT are forward-chained, so that the most recent root page
+can be located by starting a search from the first root (first page on the
+database index) when the structure is loaded from the disk during
+database startup. 
+The latest root, and possibly the other roots as well, are then cached in main
+memory for fast access. 
+The WOBT is not very space-efficient, because no data can be overwritten. 
+It is, however, an important structure, because the more recent \TSBtree\
+(described in \secref{sec:tsbmvbt:tsb}) is based on it, and the \TSBtree\ in
+turn is used in the multiversion database engine that Microsoft is
+developing on top of the SQL Server (see
+\secref{sec:tsbmvbt:immortaldb}).
+
+% Fully persistent structures
+Driscoll et~al.\ have discussed a more general way of making main-memory data
+structures either partially or fully
+persistent~\cite{driscoll:1989:persistent}\phantomsection\label{def:driscoll-persistent}.
+Their solution to partial persistence is based on the ideas presented by
+Overmars~\cite{overmars:1981:search-past-i,overmars:1981:search-past-ii}.
+They suggest using either fat nodes 
+% (see \defref{def:fat-node}) 
+or node copying to make binary search trees persistent.
+In the \emph{fat node} method, the binary tree nodes can grow arbitrarily
+large.
+In the \emph{node copying} method, the nodes may contain a fixed number of
+left and right pointers to child nodes.
+The pointers have a version attached to them that is used to select the
+correct pointer to traverse.
+When a node fills, a new copy of it is created.
+Only the most recent pointers are copied to the new node, and a pointer to the
+new node is attached to the parent.
+The old node is thus left in place and can be used for historical queries.
+While Driscoll et~al.\ designed the algorithms for in-memory structures, the
+node copying approach has been adapted for use with disk-based temporal index
+structures.
+The more recent index structures, such as the TBS-tree, the MVBT, and the
+MVAS (see \chapref{chapter:tsbmvbt}), all employ page-copying methods such as
+these to organize the database pages.
+For discussion on the fully persistent index structures, refer to the
+article by Driscoll et~al.~\cite{driscoll:1989:persistent}.
+
+% Time index and time index+
+The \emph{time index} is yet another early multiversion index structure
+that was proposed by Elmasri et
+al.~\cite{elmasri:1990:time-index,elmasri:1991:time-index}. 
+The authors had noted that the other index structures chained the versions
+of data items separately, and thus did not cluster the data items of a
+given version next to each other, and the time index was designed to correct
+this.
+Elmasri et~al.\ talk about valid
+time~\cite{elmasri:1990:time-index,elmasri:1991:time-index}, but they make the
+assumption that changes occur in an increasing time order, and that changes to
+previous times do not happen, so the time index is more properly classified as
+a transaction-time index structure (recall the definition from
+\secpageref{def:tx-time}). 
+
+The time index is based on the \Btree, but it is organized by the data-item
+versions (transaction-time instants), instead of data-item keys. 
+Each leaf page holds a range of database versions.
+The leaf-page entries are tuples of the form $(v_i, b_i)$, where $v_i$ is the
+version of the entry and $b_i$ a pointer to a bucket (i.e., database page or
+a collection of pages) containing information about the entries of that
+version. 
+To save space, only the bucket identified by $b_0$ contains a full snapshot
+of entries; the rest of the buckets (identified by $b_i$, $i \neq 0$) store
+updates.
+Elmasri et~al.\ enhance this index by various techniques
+(such as separating incremental and decremental
+buckets~\cite{elmasri:1991:time-index}), and Kouramajian et~al.\
+further develop the structure into the \emph{time
+index$^+$}~\cite{kouramajian:1994:time-index}.
+The enhanced structure uses a compression technique that shares the live
+entries of two sibling leaf pages in a shared bucket.
+This technique can also be used by a larger set of leaf pages, so that
+entries shared by all of the leaf pages are placed in a shared bucket.
+The compression technique greatly enhances the space usage, but the bucket
+updating is costly, and the situation at any given version needs to be
+reconstructed based on multiple sources.
+
+% Fully persistent B-tree
+Lanka and Mays have applied the persistence methods of Driscoll et~al.\
+discussed above to make a fully persistent
+\Btree~\cite{lanka:1991:persistent}. 
+They propose various different schemes for converting a standard \Btree\ into
+a persistent one; namely, the \emph{fat node} method, the \emph{fat field}
+method, and the \emph{pure version} method.
+All the methods are built on top of a standard, ephemeral \Btree.
+A \emph{fat node} in the persistent \Btree\ of Lanka and Mays is the
+extension of a \Btree\ node.
+It is a logical collection of \Btree\ nodes, with an added version block that
+is used to locate the \Btree\ node corresponding to a given version.
+Different versions may point to the same \Btree\ node, if the contents
+of the subtree rooted at that node are identical for both versions.
+The version block is attached to the beginning of the fat node.
+In the fat node method, the logical index thus contains alternating index
+blocks and version blocks, so that a search traversing from a root page first
+selects the correct pointer based on the searched key value, then selects
+the correct pointer based on the version attribute, and so on.
+The problem with the fat node method is space usage---each update creates
+a new disk block.
+In the \emph{fat field} method, some of the versioning information is attached
+to the \Btree\ pages, but the version blocks are still used in some situations.
+The fat field method is in fact quite close to the structure of the more
+recent indexes. 
+Because the tree contents and the pointers in index pages change between
+versions, the root of the index also changes between different versions.
+The fully persistent \Btree\ thus uses a \rootstar\ structure to store
+pointers to the roots of different versions.
+The \emph{pure version} method, on the other hand, is a straightforward
+extension of a \Btree, where the index pages are left as they are, and the
+versioning information is attached to the entries at leaf pages.
+This approach is more space efficient, but it does not cluster different keys
+of a single version close to each other, and range queries are therefore not
+efficient.
+
+The fully persistent \Btree\ was designed to be fully persistent,
+so that new versions can be based on any previous version
+(see \defref{def:fully-persistent}). 
+This is achieved by maintaining an auxiliary structure that describes the
+version history. 
+The history is modelled as a directed acyclic graph, so that different
+version branches can be merged.
+In effect, the auxiliary structure is used to fetch the ancestor set~$A_v$
+for each version~$v$.
+For convenience, $A_v$ is defined to include the version $v$.
+When a query for a version~$v$ is performed on the fully persistent \Btree,
+only versions that are present in~$A_v$ are considered.
+For partial persistence, we can omit the auxiliary structure and
+simply consider all versions.
+
+% Snapshot index
+Tsotras and Kangelaris have discussed I/O optimality and propose an I/O
+optimal (according to their definition) index structure called the
+\emph{snapshot
+index}~\cite{tsotras:1995:snapshot-index}\phantomsection\label{def:snapshot-index}.
+The snapshot index stores new data items sequentially in a doubly-linked list
+of pages. 
+The underlying structure is therefore basically a log file of item
+insertions.
+At all times, one of the pages is an \emph{accessor} page that receives
+all new records that represent item insertions or updates.
+Access to current entries is made efficient by keeping only pages that are
+\emph{useful} on the list.
+Useful pages have at least a minimum amount of entries that are alive.
+Pages that are no longer useful are moved away from the main item
+list but they are kept linked to the pages in the list.
+The index also maintains an auxiliary dynamic hash structure for locating the
+most recent update to any given data item, hashed by the item key.
+The hashing function is used to make updates efficient: any item that is to
+be deleted can be located via the hashing function in expected constant
+time, and any new item to be inserted can be placed at the single accessor
+page in constant time.
+In practice, the snapshot index has an expected constant update
+cost. 
+Queries, however, need to search through all the entries that are alive at
+the queried version, because the entries are not ordered on the key
+attribute. 
+The snapshot index is therefore efficient for constructing the entire
+(unordered) set of data items belonging to any given version, but not
+for querying a range of keys or a single key of a given version.
+More formally, the snapshot index is I/O optimal for \qtype{$*$/$-$/point}
+queries, but not for \qtype{range/$-$/point} or \qtype{point/$-$/point}
+queries.
+
+
+
+%% Multidimensional Index Structures
+%%---------------------------------------------------------------------
+\section{Multidimensional Index Structures}
+\label{sec:mv-index:spatial}
+
+Multidimensional index structures have also been used for indexing
+multiversion data.
+Recall from \secref{sec:mv-data:mv-data} that multiversion data items are 
+tuples of the form $(k, \vrmark{v}, w)$, where $k$ is the data key and 
+\vrmark{v} is life span of the data item; that is, the range of versions
+(transaction-time instants) during which the item is alive.
+The key and version dimensions are orthogonal, and the data item may thus be
+uniquely identified by a two-dimensional line segment in key-version
+space that is parallel to the version axis (see \figref{fig:md-mv-items}).
+When considered in this way, the data items can then be indexed by a
+multidimensional index structure.
+In this case, the pages of the multidimensional index structure cover regions
+of key-version space. 
+These regions are generally known as \emph{minimum bounding regions}, or
+MBRs\phantomsection\label{def:mbr}.
+\figref{fig:md-mv-items:mbr} shows one possible way to cover a set of
+multiversion data items with suitable MBRs.
+
+\begin{figure}
+\centering
+\subfigure[Data items]{\input{images/md-mv-items.tex}}
+\subfigure[Page MBRs]{\input{images/md-mv-mbr.tex}\label{fig:md-mv-items:mbr}}
+\figcaption{Multiversion data indexed in a multidimensional index}%
+{%
+%The data items can be considered as two-dimensional
+%line-segments in key-version space.
+Reading from the left, first items with keys~$2$, $3$ and~$1$ were
+consecutively inserted into the database at different versions.
+After that, data item with key~$3$ was updated and $4$ was inserted at the
+same version. 
+Finally, the item with key~$2$ was deleted.}
+\label{fig:md-mv-items}
+\end{figure}
+
+Perhaps the most widely used multidimensional index structure is the \Rtree\ 
+of Guttman~\cite{guttman:1984:rtree} and its variants, such
+as the \Rstartree\ of Beckmann et~al.~\cite{beckmann:1990:rtree}.
+\Rtree{}s do not, in general, guarantee logarithmic access times in all
+situations. 
+Even an exact-match query in the standard \Rtree\ may require traversing
+multiple paths, because the key-version regions of sibling pages may overlap.
+However, when discussing multiversion data, it is worth noticing that
+the key-version ranges of data items stored in the leaf pages cannot
+overlap.
+This means that the overlap in index pages may be reduced when storing
+multiversion data.
+On the other hand, standard multidimensional index structures are designed
+to index data items with static spatial dimensions.
+Multiversion data items have a life span \vrmark{v} that is initially an
+infinite range $[v_1,\infty)$ starting from $v_1$, as the item is not yet
+deleted.
+When the multiversion data item is deleted, its life span is cropped to a
+finite range $[v_1, v_2)$.
+The life span is thus not static, and the data items are not perfectly
+suited for multidimensional indexing.
+The initially infinite ranges of the data items also cause problems for 
+indexing.
+
+Once a multiversion data item has been deleted, it can no longer be
+modified, and its life span and key-version range become static.
+The \abbr{PostgreSQL} database system, initially introduced in an article by
+Michael Stonebraker~\cite{stonebraker:1987:postgres}, takes advantage of this
+fact. 
+Initial versions of the PostgreSQL database clustered the data item
+entries in a standard snapshot index (i.e., a \Btree) based on the key
+attribute. 
+Different versions of the data item were linked in a chain of \emph{delta
+records} that described the item updates.
+A \emph{vacuum cleaner} process was run periodically to move the
+earlier versions of data items into an \Rtree\ index.
+At this point, the moved data items were static, and could be
+properly indexed in an \Rtree.
+The \Rtree\ was thus used as a storage for historical entries.
+Kolovson and Stonebraker~\cite{kolovson:1989:historical} have also designed
+different variants of this design that utilize magnetic disks or combinations
+of magnetic and optical disks.
+Current versions of the PostgreSQL~\cite{postgresql:2009:postgresql}
+include \abbr{GiST} indexes (generalized search
+trees~\cite{hellerstein:1995:gist}) that can be used to implement \Rtree{}s.
+
+There are still problems even when storing only static multiversion data
+items (i.e., multiversion data items that have already been deleted) in an
+\Rtree, because the data items have highly varying lengths.
+A single multiversion data item with a long life span causes the entire leaf
+page where it resides in to have a wide bounding region.
+A wide leaf page causes the entire path from the leaf page up to the root
+page to have wide bounding regions, because the MBRs of the parent
+pages must cover the MBRs of their child pages.
+This in turn leads to high overlap between pages, which causes search
+performance to degrade.
+Kolovson and Stonebraker have designed the \emph{segment \Rtree}, or
+\abbr{SR-tree} to alleviate these issues~\cite{kolovson:1991:segment-index}.
+The \abbr{SR-tree} allows data items with long life spans to be stored higher
+in the tree, thus reducing the overlap on lower levels of the tree.
+Because the pages on the higher levels should also have space for enough
+index entries (i.e., pointers to child pages), the \abbr{SR-tree} allows
+pages that are higher on the tree to be larger.
+The index structure can be further enhanced if some assumption of the
+distribution of the data items can be made.
+Kolovson and Stonebraker also introduce \emph{skeleton \abbr{SR-trees}} that
+make this initial assumption and organize the structure of the tree based on
+it. 
+The index is dynamic, however, so it will adapt to the actual distribution of
+the data items.
+According to their tests, the skeleton \abbr{SR-tree} outperforms both the
+\abbr{SR-tree} and the \Rtree\ when used as a multiversion index.
+
+Regardless of the enhanced performance of the skeleton \abbr{SR-tree}, the
+fact remains that \Rtree{}s and other methods based on them do not have
+logarithmic cost guarantees, and cannot therefore be considered 
+optimal for indexing multiversion data.  
+Another problematic issue with \Rtree{}s is concurrency control and recovery.
+The MBRs of the \Rtree\ pages need to be consistent with the MBRs
+of the child pages, so they need to be updated whenever entries are inserted or deleted. 
+In standard \Rtree{}s, insertion causes MBR enlarging on the path from root
+to a leaf page.
+This can normally be processed during the search for a proper page to
+accommodate the new entry.
+Item deletion, however, causes MBRs to shrink, and the shrinking must be done
+bottom-up.
+This is challenging for concurrency control, because large parts of the tree
+need to be kept locked during the deletion operation to ensure correct
+operation and to avoid deadlocks.
+
+
+%% Hashing Structures
+%%---------------------------------------------------------------------
+\section{Hashing Structures}
+\label{sec:mv-index:hashing}
+
+Hashing is generally used for very efficient, constant-time membership
+queries, when a suitable hashing function for the indexed values exists.
+A hashing function $h : X \to \mathbb{I}$ maps all
+values~$x$ in the source domain~$X$ into a finite set of integers.
+The size of the target set is normally much smaller than the size of
+the source set.
+Some source values are therefore necessarily hashed into the same integer
+value in the target set, thus causing collisions.
+Each hashed value~$h(x)$ identifies a
+\emph{bucket}\phantomsection\label{def:bucket} that conceptually holds all
+the objects that have the same hash value.
+The range of hashed integers is thus $0, 1, \ldots, n-1$, where $n$ is the
+number of buckets allocated for the index.
+Each bucket can be implemented, for example, as a linked list of database
+pages.
+% The hashed integer value $h(x)$ can then be used as an array index, or
+% as page identifier in database systems.
+% For the hashing method to work, all the colliding values must however be
+% stored in the same location that is identified by the hash value $h(x)$.
+% One approach is to chain together all the objects with the same hash value. 
+% The storage location identified by the hashed value is generally called
+% a \emph{bucket}, as it 
+
+With traditional hashing methods, the hashing function is static, and the
+size of the target set ($n$) is therefore predefined.
+If too small a target set was initially selected, hashing becomes inefficient
+because collisions occur more and more frequently, and the object chains
+become longer.
+In these situations, a complete reorganization (a \emph{re-hashing}) of the
+hash table is required.
+Litwin has presented a linear hashing scheme that dynamically changes the
+hashing function so that the size of the target set can
+grow~\cite{litwin:1980:linear}.
+Periodically, a single bucket~$b_i$ is \emph{split} into two buckets $b_i$
+and $b_j$ by changing the hashing function so that instead of mapping the
+entries $x \in b_i$ into~$b_i$, some of them are mapped to~$b_i$ and some
+into~$b_j$. 
+This can be achieved by organizing the bucket splits correctly.
+In practice, if a hashing function~$h_i$ used at round~$i$ maps objects into
+a range $0, 1, \ldots, n_i-1$, then the hashing function~$h_{i+1}$ used for
+the next round $i+1$ maps objects into the range $0, 1, \ldots,
+2n_i-1$, thus doubling the range size $n_{i+1} = 2n_i$. 
+For all the objects~$x$ either $h_{i+1}(x) = h_i(x)$ or $h_{i+1}(x) = h_i{x}
++ n$. 
+This internal reorganizing happens one bucket at a time, so there is no
+extensive one-time reorganization. 
+At most two different hashing functions need to be used to access any object,
+and so the expected performance of the hashing remains the same, even if the
+set of stored objects grows.
+
+Kollios and Tsotras have expanded the linear hashing method for hashing
+multiversion data items~\cite{kollios:2002:hashing}.
+In their partially persistent linear hashing method, each data bucket
+stores multiversion data items similar to our definition (see
+\defref{def:mv-item}). 
+% Each entry records a life span during which the data item is alive. 
+When a bucket split occurs, the hashing function changes and some entries
+need to be moved to a new bucket.
+In this situation, the entries are moved \emph{logically}; that is, 
+a live multiversion item $(k, [v_1, \infty), w)$ that is moved during a split
+at version~$v_2$ from bucket~$b_i$ to bucket~$b_j$ remains in~$b_i$, but the
+entry representing it is changed to the historical entry $(k, [v_1,
+v_2), w)$, and a new live entry $(k, [v_2, \infty), w)$ is inserted into the
+new bucket~$b_2$.
+The historical query operation then reduces to finding the correct hashing
+function used at the historical version, and then finding the historical
+entry from the correct page.
+For the first part of the query, Kollios and Tsotras maintain an array that
+stores information about the hashing functions used for different versions.
+Each array slot represents a version during which the hashing function has
+changed, and locating the correct function thus requires a binary search on
+the array. 
+This search adds a logarithmic cost on the historical query, which is
+otherwise an expected amortized constant-time operation.
+Kollios and Tsotras note, however, that the array should be small enough to
+remain in main memory and thus the effect of this search on the overall query
+performance should be negligible.
+
+Hashing functions are efficient for solving the \qtype{point/$-$/point}
+query, with (almost) an expected \OhT{1} constant query and update costs.
+The trade-off is that other query types cannot be processed efficiently.
+Key-range queries are especially inefficient, because the keys are not
+clustered near each other.
+In fact, finding the next key in a hashing structure requires either
+traversing through the entire structure or, even worse, trying out all
+possible next keys.
+Hashing structures are therefore not suitable as a general multiversion index
+structure.
+
+
+%% Version-Control Systems
+%%---------------------------------------------------------------------
+\section{Version-Control Systems}
+\label{sec:mv-index:vcs}
+
+Software engineers use version-control systems (\abbr{VCS}) to share the
+software code between the developers and to maintain the history of all the
+previous versions of the software.
+A developer \emph{checks out} the code from the central version-control
+system, creates his modifications, and finally \emph{commits} them to the
+\abbr{VCS}, thus creating a new version.
+In this sense, version-control systems are in fact transaction-time
+databases.
+Most version-control systems allow software engineers to create branches on
+the version history, so that different teams can work with different features
+without disturbing each other.
+Version-control systems are therefore fully persistent.
+Examples of version-control systems are the concurrent versions system
+(\abbr{CVS})~\cite{cederqvist:2008:cvs},
+Subversion~\cite{collins-sussman:2008:version}, and
+Git~\cite{git:2010:user-manual}.
+
+The main difference between version-control systems and traditional databases
+is in their usage. 
+Multiversion database indexes are used to locate data item tuples based on a
+single key or a key range, by either fixing the version to a single point or
+by specifying a range of versions (recall the different query types from
+\secref{sec:mv-data:queries}).
+Version-control systems, on the other hand, are used for much more specific
+queries, such as ``find all the differences between versions $v_1$ and
+$v_2$'' (with $v_1$ and $v_2$ possibly on totally different branches), 
+``find all the changes to the data item identified by $k$'', or ``find the
+version during which the line $l$ was changed in the text file identified
+by $k$''.
+These are queries that could not be effectively answered using a traditional
+database index.
+% Because the version-control systems are optimized for answering these kinds of
+% queries, it would be reasonable to assume that they are not optimal
+% for answering the queries defined for traditional databases.
+A multiversion database system could, however, conceivably use an
+existing version-control system for indexing the multiversion data items, and
+it is therefore worth it to examine these systems a little further to determine
+whether they would be efficient for this purpose.
+
+Fendt has evaluated the performance of some of the more recent
+version-control systems in an online article at the Linux
+Foundation~\cite{fendt:2009:dvcs}.
+He shows that the Git version-control system is the fastest one, alongside
+with another \abbr{VCS} called Mercurial. 
+We will therefore concentrate on Git. 
+
+The Git version-control system is based on indexing objects by the
+\abbr{SHA-1}%
+\footnote{\abbr{SHA-1}, the Secure Hash Algorithm, is a cryptographic
+hash function that computes a \num{160}-bit hash value (called \emph{digest}) from
+its input.} 
+hash values of their contents~\cite{virtanen:2009:git,git:2010:user-manual}.
+The objects are stored in the file system, named with the hexadecimal
+representation of the \abbr{SHA-1} hash value.
+The file system therefore works as the primary index for the stored objects.
+Four types of objects can be stored in the Git database: blobs, trees,
+commits, and tags.
+The \emph{blob} type is used to represent any object that is stored in the Git
+\abbr{VCS}, and so every file that is added to Git is stored in a blob
+object. 
+\emph{Tree} objects are used to maintain directory hierarchies, 
+\emph{commit} tags represent commits (i.e., database versions), and
+\emph{tags} are used to assign cryptographic tags for other objects (e.g.,
+for verifying their contents).
+
+Each tree object logically represents a single node and all its children in
+a directed acyclic graph.
+The tree object is basically a collection of pointers to objects stored under
+that node.
+A pointer that points to an object~$o$ is stored in a tuple of the form $(m,
+t, s, n)$, where $m$ is the file system mode of the file that represents~$o$,
+$t$ is the type, $s$ is the \abbr{SHA-1} digest of the object~$o$, and $n$ is
+the name of the object.
+Subdirectories are maintained by storing pointers to other tree nodes.
+To proceed from a tree node $x$ to its child node, we find the correct child
+pointer $(m, t, s, n)$, and use the \abbr{SHA-1} hash value $s$ to retrieve
+the child object from the index (i.e., by loading the file named $s$ from the
+file system).
+Different versions are created by possibly creating new tree objects for that
+version. 
+Any child object (e.g, a text file) that has changed has an updated
+\abbr{SHA-1} hash value, because the hash is based on the contents of the
+stored objects.
+This in turn changes the tree object, because the tree object contains the
+\abbr{SHA-1} values of its children in the pointer records.
+The changed tree object again needs to be indexed with a different
+\abbr{SHA-1} value, and thus a change propagates all the way to the root of
+the directory structure.
+Unchanged nodes can however be efficiently reused between different versions.
+The Git \abbr{VCS} therefore relies on a form of \emph{path copying} (see
+\secpageref{def:path-copy}).
+
+A straightforward way of using the Git version-control system as a
+multiversion index structure would be to store each key in a single tree
+object. 
+A binary search could then be used to quickly locate the searched key among
+the pointers stored in the tree object. 
+The single tree object would then work as a dense index for the stored
+objects.
+While querying would be efficient, note that updating any key necessitates
+duplicating the entire tree object, thus duplicating the entire indexing
+portion of the multiversion database.
+The update performance and the space usage of this structure would be
+suboptimal.
+Also note that this kind of a structure could not be used as a sparse
+(primary) index structure, because all the child objects (data items stored
+in the database) must be stored in separate files.
+As a conclusion, the version-control systems are designed for maintaining
+versions of files and file directories, and they are not really suited for
+usage as general-purpose database indexes.
+
+
+
+%% Other Structures
+%%---------------------------------------------------------------------
+\section{Other Structures}
+\label{sec:mv-index:other}
+
+In addition to the index structure already reviewed in this chapter, there
+are still a few structures worth noticing.
+For example, the search engine conglomerate Google has built a customized
+database system for organizing the peta\-bytes of data their search engines
+need to search through.
+Their database system is called Bigtable~\cite{chang:2006:bigtable}, and it
+is designed to be a highly scalable database system that can be used to index
+vast amounts of data in a distributed database environment.
+What is interesting from our point of view is that Bigtable also offers some
+basic versioning functionality: data items are stored with versions,
+and they can be used for querying.
+There is a catch, however, as Bigtable was not designed to be primarily a
+multiversion database index.
+The data items are ordered on the item keys, and all the versions
+of a data item are stored in the same page (or \emph{cell}, by the 
+terminology of Bigtable).
+Cells can have multiple versions which are chained together by placing the
+most recent version of the cell in the front of the chain.
+The Bigtable thus has problems similar to those of the versioned \Btree\
+described in \secref{sec:mv-index:btree} and of indexes that use reverse
+chaining (described in \secpageref{def:reverse-chaining}): early versions
+cannot be directly accessed (because of the version chain), and key-range
+queries are not efficient.
+The problem for key-range queries of the most recent version is alleviated
+somewhat, because not all of the versions of a given data item need to be
+scanned.
+Key-range queries of the earlier versions, however, must still traverse the
+version-chains to locate the correct version.
+From this we can arrive to the conclusion that the Bigtable is not 
+optimal for indexing multiversion data.
+
+Jouini and Jomier~\cite{jouini:2007:multiversion} have also recently
+published an article comparing three different approaches for indexing
+fully persistent transaction-time data (i.e., data with a possibly branched
+evolution).
+Their structures are called the \abbr{B+V-tree}, the \abbr{OB+tree}, and
+the \abbr{BT-tree}.
+From these, the \abbr{B+V-tree} resembles the versioned \Btree\ introduced in
+\secref{sec:mv-index:btree}, but with support for branched history evolution.
+Like the versioned \Btree, the \abbr{B+V-tree} is not efficient for range
+queries because the entries are clustered primarily by their keys, and only
+then by their versions.
+The second structure, the \abbr{OB+tree}, builds multiple \Btree{}s that are
+allowed to share unchanged branches. 
+This approach is an example of path copying (see \secpageref{def:path-copy}),
+and any update performed to a leaf page at database version~$v$ to create a new
+version $v^{+}$ therefore necessitates the creation of a new root-to-leaf path,
+thus requiring \Om{\log \entries{v}} space for each update, where \entries{v}
+is the number of entries alive at version~$v$. 
+The final index structure, the \abbr{BT-tree}, indexes entries based on both
+the key and the version attributes, thus making this structure closer to the
+more efficient approaches described in the next section.
+As the details of the index structure are not discussed, we cannot really
+determine the characteristics of this index structure.
+The other two structures are suboptimal for indexing partially persistent
+data because of the design choices they are based on, as explained above.
+
+
+
+%% Summary
+%%---------------------------------------------------------------------
+% \section{Summary}
+% \label{sec:mv-index:summary}
+% 
+% In this chapter, we have described several different techniques designed
+% and used for indexing temporal data. 
+% So far, none of the structures presented are optimal (by
+% \defref{def:optimal-mv}), and their performance may thus degrade in some
+% situations.
+% In the next chapter, we discuss several efficient multiversion structures and
+% show that an optimal index structure for partially persistent transaction-time
+% indexing exists.
+

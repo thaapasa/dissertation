@@ -1,0 +1,1400 @@
+%%=====================================================================
+%% Transactions on Multiversion Data
+%%=====================================================================
+\chapter{Transactions on Multiversion Data}
+\label{chapter:mv-data}
+
+% Explanation of the details of transactions on multiversion data.
+% The transaction model.
+% No implementation (index structure) details.
+
+The theory of general transaction processing in traditional 
+databases is well-defined and mature, and the basic principles are
+well presented in many
+textbooks~\cite{bernstein:1987:cc-n-r,gray:1993:transactionprocessing,papadimitriou:1986:cc-theory}.
+In this chapter, we concentrate on the theory of multiversion
+transaction processing, and highlight the differences to classical
+transaction theory.
+The traditional read-write model assumes that transactions are sequences
+of reads and writes on data items, without distinguishing item deletions and
+insertions from
+updates~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory}.
+The theory of transaction processing in this dissertation is based on
+the recoverable transaction model presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, which in turn is based on the
+model proposed by C.~Mohan~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}.
+In this model, data-item insertions and deletions are made explicit,
+and structure-modification operations are included in the model.
+We assume the partially persistent transaction-time model, as
+described in the introduction.
+We will use the terminology presented in the consensus glossary of
+temporal database concepts by Böhlen et~al.~\cite{bohlen:1998:consensus}, for
+the relevant parts.
+The chapter begins with a short review of the fundamental concepts of
+transaction management in traditional databases, and continues to
+describe the most important aspects of multiversion database theory.
+%, highlighting the differences to classical database theory.
+
+
+%% Fundamentals of Snapshot Database Theory
+%%---------------------------------------------------------------------
+\section{Fundamentals of Snapshot Database Theory}
+\label{sec:mv-data:snapshot}
+
+%In traditional snapshot-database transaction
+%theory~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory},
+%database indexes are collections 
+We assume our logical database consists of data items of the form $(k,
+w)$, where $k$~is the key and $w$~is the value of
+the data item~\cite{sippu:2001:theory}.
+%The value~$w$ can contain the actual data stored with the key (the
+%row in the relation), in the case of a \emph{sparse} or
+%\emph{primary index}; or a pointer to some storage location, in the
+%case of a \emph{dense} or \emph{secondary index}. 
+The logical model thus has no knowledge of any time dimension.
+Databases that follow this data model are called
+\emph{snapshot databases}\phantomsection\label{def:snapshot-database}.
+As \figref{fig:tx-snapshot} shows, any change to a snapshot database
+overwrites the information about previous states.
+The \emph{schedule} of a transaction, as shown in the figure, is a list of
+actions issued by the transaction. 
+The format of the schedule is explained in the following paragraphs.
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-snapshot.tex}
+\figcaption{Transaction in a snapshot database}{The transaction has
+executed the schedule $b w[1,\alpha,\alpha'] d[2] w[5,\epsilon] c$.}
+\label{fig:tx-snapshot}
+\end{figure}
+
+In the traditional transaction model, transactions in snapshot
+databases consist of user actions that either \emph{write} keys to or
+\emph{read} keys from the database.
+In addition, a transaction must issue either a \emph{commit} or an
+\emph{abort action} to indicate that the transaction is finished.
+After an abort action, the read and write actions are undone and the
+transaction commits.  
+A read action of a key $k$ by a transaction $T_i$ is denoted by 
+$r_i[k]$, and a write action by $w_i[k]$.
+The commit and abort actions are denoted by $c_i$ and $a_i$, respectively.
+This classical transaction model is inadequate for
+modelling key-range queries and next-key queries, and it does not
+differentiate between key insertions, updates, and deletes.
+Mohan has proposed a more general transaction model alongside his 
+ARIES recovery algorithm~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im},
+which Sippu and Soisalon-Soininen have
+further refined~\cite{sippu:2001:theory}. 
+In the model of Sippu and Soisalon-Soininen, transactions may \emph{retrieve}
+the first matching data item $(k, w)$ for which $k~\theta~x$, where $\theta$
+is either $>$ or $\geq$ and $x$ is a given search key;
+\emph{insert} a new data item $(k, w)$; or 
+\emph{delete} the data item that has the supplied key $k$.
+In this model, key-range queries are performed by consecutive key
+retrievals with $\theta$ set to $>$ and $x_{i+1} = k_i$.
+Retrieval of a data item $(k, w)$ with $k~\theta~x$ by transaction
+$T_i$ is denoted by $r_i[k, \theta x, w]$; 
+insertion of data item $(k, w)$ by $n_i[k, w]$; 
+and deletion of data item $(k, w)$ by $d_i[k, w]$.
+Transactions must also issue an explicit \emph{begin action} $b_i$
+before performing any other operations.
+%The \emph{commit action} is denoted by $c_i$.
+
+% For convenience, we will use shorter forms $r_i[k,\theta x]$,
+% $n_i[k]$, and $d_i[k]$ for the user actions when such forms
+% are sufficient.
+
+Updating an existing data item is often not defined as a separate
+action, but rather implemented by first deleting the existing data
+item and then inserting the new data item to replace the old one.
+For convenience and simplicity, we define a \emph{write action}
+to either insert a new data item, if no data item with
+the same key already exists; or to first logically delete an existing data
+item and then replace the deleted data item by a new one.
+A write action of transaction $T_i$ inserting a data item
+$(k, w)$ is denoted by $w_i[k,w]$, and a write action replacing an existing
+data item $(k, w')$ by $(k, w)$ is denoted by $w_i[k,w',w]$.
+We do not equate the term ``update'' with the write action, because a key
+deletion is also an update action.
+An update action can thus refer to any data-item modifying action.
+% This notation can be shorten to $w_i[k]$, when such a form is
+% sufficient.
+We will follow this combined model with read, write, and delete
+actions in this dissertation. 
+When sufficient, we will use shortened forms $r_i[k, \theta x]$ (or $r_i[k]$
+as a shorthand for $r_i[k, =$$k]$) to denote item retrieval, $w_i[k]$ to
+denote the write action, and $d_i[k]$ to denote the delete action; possibly
+omitting the indices if discussing only a single transaction.
+
+Transactions that only consist of data-item retrieval actions are called  
+\emph{read-only transactions}, and transactions that include
+write and delete actions (as described above) are called \emph{updating
+transactions}.
+Updating transactions modify the same data set, in the order the
+update actions are issued.
+Concurrency-control and recovery algorithms are used to maintain the
+\abbr{ACID}\phantomsection\label{def:acid} properties of transactions: 
+atomicity, consistency, isolation, and
+durability~\cite{gray:1993:transactionprocessing}. 
+If a database management system supports the serializable isolation
+level, the actions of the transactions will be executed in such an
+order that the outcome is the same as if the transactions had
+executed in a serial order, each transaction in its entirety in
+isolation from the others.
+
+Transaction isolation in databases is achieved by using
+a concurrency-control algorithm, such as key-value locking (also known
+as key-range
+locking~\cite{gray:1993:transactionprocessing,mohan:1990:aries-kvl}).
+%two-phase locking, and strict two-phase
+%locking~\cite{gray:1993:transactionprocessing,bernstein:1987:cc-n-r}.
+The \abbr{ANSI/ISO} \mbox{SQL-92} specification~\cite{ansi:1992:sql}
+defines four isolation levels based on the anomalies that can occur
+during the execution of concurrent transactions. 
+The isolation levels are named 
+(1)~read uncommitted, 
+(2)~read committed, 
+(3)~repeatable read, and
+(4)~serializable.
+The initial definition of the phenomena, however, fails to properly
+classify the different isolation levels. 
+Berenson et~al.\ propose an updated model for the isolation
+levels~\cite{berenson:1995:sql-critique}.
+The anomalies, or phenomena, that cannot occur in each of the levels
+in the updated model are 
+(1)~dirty writes, 
+(2)~dirty reads,
+(3)~fuzzy reads, and
+(4)~phantoms.
+The phenomena exclusion is additive, so that transactions operating
+on the repeatable read level must not encounter dirty writes, dirty
+reads, or fuzzy reads; but may encounter phantoms.
+Only the serializable isolation level avoids all the
+anomalies, and thus guarantees transaction isolation. 
+
+The serializable isolation level is implemented by
+key-value locking, for example.
+In fact, phantom avoidance cannot be achieved by locking schemes that
+only lock those key values that have been read or written.
+The key-value locking approach avoids phantoms by locking both the
+accessed key and the next key found in
+the database~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}, thus in
+effect locking the range of keys from the accessed key to the next
+existing key. 
+Another approach for avoiding phantoms is to use predicate locking,
+but this is often unpractical as predicate satisfiability in general
+is a known \NP-complete problem and thus the approach can be highly
+inefficient~\cite{gray:1993:transactionprocessing}.
+A drawback of the serializable concurrency-control algorithms is that
+they hinder the overall performance of the database system by forcing
+other transactions to wait for access to locked keys.
+Database management systems thus allow the user to set some
+transactions to run on a lower isolation level to enhance the
+performance of the system.
+
+Recovery is another important aspect of database systems.
+Applications rely on databases to maintain their data and to make sure
+that the data is available and consistent even after a system crash.
+The standard recovery algorithm is the ARIES algorithm (\emph{Algorithm 
+for Recovery and Isolation Exploiting
+Semantics}~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im,mohan:1992:aries,mohan:1999:aries-history}),
+which was developed by C.~Mohan at IBM\@.
+The ARIES algorithm is used in many commercial database systems, such as
+\abbr{IBM DB2} and Microsoft SQL Server~\cite{mohan:1999:aries-history}; and
+it is taught in database courses in many universities, including ours.
+The algorithm maintains data integrity even in the presence of system crashes,
+and guarantees that the data set contains all the updates of all committed
+transactions, and none of the updates of transactions that were aborted or had
+not committed before the system crashed.
+In our discussion, we will assume the standard
+write-ahead-logging~(\abbr{WAL}\phantomsection\label{def:wal}~\cite{mohan:1992:aries})
+and steal-and-no-force page-buffering
+policy~\cite{gray:1993:transactionprocessing}.
+Under these policies, the buffer manager may steal unfixed dirty
+pages from the page buffer and flush them to disk, possibly
+causing updates of uncommitted transactions to be written to disk
+(\emph{steal}).
+When a transaction commits, the log is forced to the disk, but the dirty
+pages are not (\emph{no-force}). 
+Whenever writing a data page to the disk, the log file must first be
+written so that all the updates in the disk versions of the data
+pages are also present in the disk version of the log, as dictated by
+the write-ahead-logging policy.
+Furthermore, the log file must be flushed to disk whenever committing
+a transaction, at least up to and including the log entry for the
+commit action.
+These requirements are necessary to ensure that database recovery can
+bring the database to a consistent state after a system crash.
+
+
+
+%% Different Concepts of Time and History
+%%---------------------------------------------------------------------
+\section{Different Concepts of Time and History}
+\label{sec:mv-data:time}
+
+% Valid time
+The concept of time in connection with database theory has multiple
+definitions.
+The latest consensus glossary of temporal database
+concepts~\cite{bohlen:1998:consensus} presents three different
+definitions for time: valid time, transaction time, and user-defined
+time.
+The first of these, \emph{valid time}\phantomsection\label{def:valid-time},
+is the time when a recorded fact (data item) is true in the modelled
+reality.
+Valid time is usually provided by the user, and it may be changed later if
+the corresponding real-life fact changes.
+For example, events in a calendar database have starting times and
+ending times.
+These times may naturally be changed if the event is rescheduled to
+another time, and the time of the scheduled event is thus an example of valid
+time in a database.
+It should be noted that the valid time may also be a single time
+instant, instead of a time range.
+Any change in a valid-time database overwrites the information about the
+earlier state of the database, in the same way as in snapshot
+databases.
+An example of a transaction operating in a valid-time database is shown in
+\figref{fig:tx-valid}.
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-valid.tex}
+\figcaption{Transaction in a valid-time database}{The transaction has
+executed the schedule $b w[1,\alpha,\alpha'] d[2] w[5,\epsilon] c$.}
+\label{fig:tx-valid}
+\end{figure}
+
+% Transaction time
+The second time concept, \emph{transaction
+time}\phantomsection\label{def:tx-time}, is used to record the time when a
+data item is current in the database and may be retrieved.
+The transaction time of a data item is always an interval which
+begins when the item is stored in the database.
+Initially, the end of the transaction-time interval is undefined, and 
+the item is retrievable in all transaction-time instants starting
+from the instant the item was inserted into the database.
+Transaction time is always provided by the database management
+system, and it must be an increasing value so that the ordering
+of the transaction-time instants is consistent.
+The transaction-time interval of a data item is called a life span, and we
+give a formal definition below:
+
+% If the data item is deleted at transaction-time instant $v$, the
+% transaction-time interval end-time is set to $v$.
+% Thus, the transaction-time interval of a data item is a closed-open
+% interval of the form $[v_1, v_2)$, where $v_1$ is the
+% transaction-time instant when the item was inserted in the database,
+% and $v_2$ is the transaction-time instant when the item was deleted:
+
+\thmskip
+\begin{definition}
+\label{def:lifespan}
+The \emph{life span} of a data item is a closed-open transaction\hyp{}time
+interval $\vrmark{v} = [v_1, v_2)$.
+The time instant $v_1$ is called the \emph{creation time} of the data item,
+and it specifies the transaction-time instant when the item was inserted
+to the database.
+Similarly, $v_2$ is called the \emph{deletion time} of the data
+item, and it specifies the transaction-time instant when the item was
+deleted. 
+If the data item has not been deleted, $v_2 = \infty$.
+\end{definition}
+\thmskip
+
+In transaction-time databases, all the data items have an associated life
+span, and we call them multiversion data items to distinguish
+them from the data items of the logical database. 
+The formal definition of a multiversion data item is given later (in
+\defref{def:mv-item}), but from now on, we will use the term \emph{data item}
+to mean a multiversion data item. 
+When we wish to refer to the data items of a snapshot database (i.e., data
+items without associated life spans), we will use the term
+\emph{snapshot data item}. 
+
+In contrast to snapshot and valid-time databases, any change in a
+transaction-time database creates a new state and thus does not
+overwrite any previous states.
+An example of this is shown in \figref{fig:tx-transaction}.
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-transaction.tex}
+\figcaption{Transaction in a transaction-time database}{The
+transaction has executed the schedule $b w[1,\alpha,\alpha'] d[2] 
+w[5,\epsilon] c$.
+The arrow on the top shows the latest committed version~\comver.}
+\label{fig:tx-transaction}
+\end{figure}
+
+% Terminology: versions and histories
+The transaction-time instants are often called \emph{database versions}, as
+the contents of the database item set may only change between each
+transaction-time instant.
+Because this term is used by many authors, we will use the term
+\emph{version} from now on to mean transaction-time instants. 
+Moreover, we will use the term \emph{alive} to mean that a data item is part
+of the current data set. 
+This is defined more formally for different versions below:
+
+\thmskip
+\begin{definition}
+\label{def:alive-at-version}
+A data item is \emph{alive at version}~$v$, if the life span of the data
+item covers $v$; that is, if $v_1 \leq v < v_2$, where $[v_1, v_2)$ is the
+life span of the data item.
+Queries that target a version~$v$ only return items that are alive at
+version~$v$.
+\end{definition}
+\thmskip
+
+If $v < v_1$ or $v \geq v_2$, the data item is not part of database
+version~$v$. 
+We call the most recent committed database version the \emph{current version}
+of the database.
+This version is denoted by \comver\phantomsection\label{def:maxcomver}. 
+
+\thmskip
+\begin{definition}
+\label{def:alive}
+A data item is \emph{alive} if it is alive at version~\comver.
+\end{definition}
+\thmskip
+
+The data items that are alive at version~$v$ form a \emph{database state}
+$s_v$. 
+A transaction-time database thus consists of a series of consecutive states
+\smash{$s_0, s_1, \ldots, s_{\comver}$}. 
+Data items that belong to database state $s_v$ automatically belong
+to the next state $s_{v+1}$, unless they are explicitly deleted at
+version~$v+1$.
+The state \smash{$s_{\comver}$}, identified by the current database
+version~\comver, is called the \emph{current state}, and all the states $s_v
+: v < \comver$ preceding the current state are called
+\emph{historical states}.
+
+% User-defined time, more terminology
+Efficient queries within the transaction-time domain or the
+valid-time domain require database index structures that
+are specifically designed for such queries.
+In contrast, the third time concept, the \emph{user-defined time},
+is an uninterpreted attribute used to refer to any
+application-specific time value.
+The user-defined time has no special meaning in the database
+management system.
+Database systems are thus categorized by their ability to index
+valid time and transaction time. 
+Valid-time databases can be used to index events that occur at some
+time in the modelled reality.
+Database systems that can be used to access historical states are
+called transaction-time databases.
+Database systems that encompass both of these time dimensions are
+called \emph{bitemporal databases}.
+This taxonomy of the time dimension was first presented by Snodgrass
+and Ahn~\cite{snodgrass:1985:taxonomy}. 
+The terms transaction time, valid time, and user-defined time were
+introduced to replace the previous, vague terms \emph{physical} and
+\emph{logical time}.
+Finally, we will use the term \emph{real time} to mean the time of
+the real world (often called user time or wall-clock time).
+In practice, valid time is often the same as real time, but it can
+also be used to model some other time domain.
+For example, consider a valid-time database used in a
+science-fiction game---the time in the modelled virtual universe
+would be the valid-time domain in this case. 
+
+% Example contents of a bitemporal database 
+\begin{figure}[tb]
+\begin{center}
+\begin{tabular}{ccc@{\hspace{1.5ex}}cc@{\hspace{1.5ex}}c}
+\themph{Name} & \themph{Rank} & \multicolumn{2}{c}{\themph{Valid
+time}} & \multicolumn{2}{c}{\themph{Transaction time}}\\
+& & From & To & From & To\\
+\toprule
+Merrie & Associate & \isodate\dbdate{1.1.2001} & $\infty$ &
+\dbdate{20.12.2000} & \dbdate{5.5.2003}\\ 
+Merrie & Associate & \dbdate{1.1.2001} & \dbdate{1.5.2003} &
+\dbdate{5.5.2003} & $\infty$\\ 
+Merrie & Full & \dbdate{1.5.2003} & $\infty$ & \dbdate{5.5.2003} &
+$\infty$\\
+\midrule
+Tom & Full & \dbdate{10.3.2003} & $\infty$ & \dbdate{7.3.2003} &
+\dbdate{13.3.2003}\\ 
+Tom & Associate & \dbdate{10.3.2003} & $\infty$ & \dbdate{13.3.2003}
+& $\infty$\\
+\midrule
+Mike & Assistant & \dbdate{22.3.2004} & $\infty$ & \dbdate{24.3.2004}
+& \dbdate{17.5.2005}\\ 
+Mike & Assistant & \dbdate{22.3.2004} & \dbdate{16.5.2005} &
+\dbdate{17.5.2005} & $\infty$\\
+\bottomrule
+\end{tabular}
+\caption[Valid time and transaction time in a bitemporal database]%
+{Examples of the use of valid time and transaction time in a
+bitemporal database.}
+\label{fig:time-concept-table}
+\end{center}
+\end{figure}
+
+% Example
+An example of the possible contents of a bitemporal database, shown
+in \figref{fig:time-concept-table}, clarifies the difference
+between the time concepts.
+This example has been adapted from the
+taxonomy of time by Snodgrass and Ahn~\cite{snodgrass:1985:taxonomy}.
+Reading from the contents of the example database, Merrie was
+appointed as an associate professor \printdate{1.1.2001}, but this
+fact was entered into the database earlier on, on the 20th 
+December. 
+Merrie was promoted to full professorship 
+\printdate{1.5.2003}, the fact of which was retroactively inserted
+into the database on the 5th. 
+Associate professor Tom's employment begun \printdate{10.3.2003},
+which was tentatively recorded to the database on
+the 7th of March. 
+On the 13th, it was however noted that he had been accidentally
+recorded as being a full professor, and the fact was then corrected.
+Mike left the faculty \printdate{16.5.2005}, which was recorded to
+the database on the 17th.
+Note that only the bitemporal database model records all these
+aspects of the evolution of the employment data.
+
+% Data persistence
+Yet another aspect of temporal databases is data persistence.
+In contrast to other database types, transaction-time databases
+and bitemporal databases offer more in terms of
+traceability and accountability, because the entire history of database
+states is stored and available for querying.
+By the terminology of Driscoll et~al.~\cite{driscoll:1989:persistent},
+transaction-time databases and bitemporal databases are called \emph{persistent
+databases}, whereas snapshot databases and valid-time databases are called
+\emph{ephemeral databases}.
+
+Intuitively, when using a transaction-time database to model
+changes in reality, a linear version history is often appropriate.
+In this model, a new database version is always based on the current
+version of the database:
+
+\thmskip
+\begin{definition}
+\label{def:partially-persistent}
+A \emph{partially persistent} transaction-time database incorporates a linear
+history, in which new versions of data items are created based on the most
+recent version.
+\end{definition}
+\thmskip
+
+%Database systems that incorporate a linear version history are called
+%partially persistent database systems. 
+%Fully persistent databases, on the other hand, allow new versions to be
+%created based on any earlier version, thus creating branching and diverging
+%version histories.
+Many engineering applications, such as 
+%This model is required by many engineering applications, such as
+version control systems and engineering design databases,
+require that new versions can be based on any earlier version:
+
+\thmskip
+\begin{definition}
+\label{def:fully-persistent}
+A \emph{fully persistent} transaction-time database system allows new versions
+to be created based on any earlier version, thus enabling the creation of
+branching and diverging histories.
+\end{definition}
+\thmskip
+
+Note that an implication of this definition is that every fully persistent
+database system is necessarily also a partially persistent database system.
+
+% Multiversion, links to fully persistent models
+Most of the temporal database systems are designed on the partially
+persistent transaction-time model. 
+These database systems are called \emph{multiversion databases} by many
+authors~\cite{becker:1996:mvbt,bercken:1996:multiversion,jouini:2007:multiversion,lomet:1989:tsb,varman:1997:multiversion}.
+From now on, we will be discussing multiversion databases based on
+this definition.
+Fully persistent database systems are discussed by other
+authors~\cite{landau:1995:historical,salzberg:1995:branched}.
+In fully persistent databases, a central challenge is finding out
+whether two different versions are in the same version branch in the
+version history.
+Salzberg and Lomet~\cite{salzberg:1995:branched} suggest using
+sequence numbers to identify data-item versions.
+Their index structure assumes a small number of different branches.
+Each data item is assigned a version and a branch identifier,
+and the branch identifier is used to check whether a data item is an
+ancestor of another data item. 
+This check requires at most \Oh{n} operations, where $n$ is the number
+of branches in the system.
+Landau et~al.~\cite{landau:1995:historical} use a history tree with arrays
+that store change information in each node of the history tree. 
+Searches along a history branch first locate the queried version, and then
+reconstruct the database state by combining the change sets of the
+located node and its ancestor nodes.
+Landau et~al.\ note that an index structure such as the snapshot index
+of Tsotras and Kangelaris~\cite{tsotras:1995:snapshot-index}~(see
+\secpageref{def:snapshot-index}) could be used to make the state
+reconstruction more efficient.
+
+
+
+%% Query Types
+%%---------------------------------------------------------------------
+\section{Query Types}
+\label{sec:mv-data:queries}
+
+% Different query types
+An important property of temporal databases is the different types
+of queries that can be run on them.
+Ideally, the user should be able to define any bounds for the 
+key and the transaction time of the sought data item in a
+multiversion database.
+The corresponding ideal model allows the user to specify the key, the
+transaction time, and the valid time in a bitemporal database.
+All of these specified properties can be either intervals or
+points in the corresponding dimension.
+Most temporal databases, however, restrict the query types that are
+possible for the database.
+Tsotras et~al.~\cite{tsotras:1998:notation} define a notation for
+specifying the query types that can be run on different kinds
+of databases.
+We use the notation for temporal databases that was adapted by
+Salzberg and Tsotras in their temporal database
+comparison~\cite{salzberg:1999:comparison}.
+The notation is \qtype{key/valid/transaction}, where \qtype{key} means
+the key dimension, \qtype{valid} means the valid-time dimension, and
+\qtype{transaction} means the transaction-time dimension.
+Each part of the query type may be either \qtype{point}, \qtype{range},
+$*$, or $-$.
+Here, \qtype{point} means that a single point in the corresponding
+dimension is queried, \qtype{range} means that a range of the
+appropriate dimension is queried, $*$~means that all values in
+the dimension are to be included in the result, and $-$~means
+that the dimension does not apply to this database.
+Conceptually, $*$~is the same as defining a \qtype{range} that
+covers all the values in the corresponding dimension.
+
+% Allowed query types for multiversion database
+On an ideal multiversion database, the database user should be able to run any
+queries of the form \qtype{$x$/$-$/$x'$}, where $x$~and~$x'$ are both either
+\qtype{point}, \qtype{range}, or~$*$.
+Most multiversion databases, however, restrict the query type to
+\qtype{$x$/$-$/point}~\cite{becker:1996:mvbt,kollios:2002:hashing,lomet:2005:immortaldb,lomet:1989:tsb}.
+This means that queries may target data items with different keys, but only 
+within a single version of the database at a time.
+In the terms of the consensus glossary~\cite{bohlen:1998:consensus},
+the multiversion databases only allow queries that apply a
+\emph{transaction-timeslice operator} with an \emph{instant-type} argument.
+In our dissertation, we will assume the query type
+\qtype{$x$/$-$/point} as the basis of our multiversion data model.
+In this model, the user always supplies a single version when
+querying on the database.
+For discussion on the \qtype{$x$/$-$/$x'$} query type for the MVBT
+index structure~(see \secref{sec:tsbmvbt:mvbt}), we
+direct the reader to the article on query processing techniques by
+van~den Bercken and Seeger~\cite{bercken:1996:multiversion}.
+
+
+%% Representing Multiversion Data
+%%---------------------------------------------------------------------
+\section{Representing Multiversion Data}
+\label{sec:mv-data:mv-data}
+
+At this point, we can formally define a multiversion database:
+
+\thmskip
+\begin{definition}
+\label{def:mv-database}
+A \emph{multiversion database} is a transaction-time database that is
+partially persistent and enables efficient \qtype{$x$/$-$/point} queries
+on data items, where $x$ is either \qtype{point}, \qtype{range}, or $*$. 
+The transaction-time instants of the data items in a multiversion
+database are called \emph{database versions}. 
+The versions of the multiversion database are ordered based on the
+commit-time ordering of the transactions.
+\end{definition}
+\thmskip
+
+% Mapping from transaction-time to real time
+The versions of a multiversion database do not necessarily directly map to
+any real-time instants.
+In fact, using consecutive integer values for database versions has
+the advantage that the next version can always be easily determined.
+Users of the system, however, often wish to query past states based
+on real-time instants.
+There are two intuitive approaches for overcoming this discrepancy.
+In the first approach, database versions are increasing integer
+values, and a separate mapping between versions and real
+time is maintained in the database system.
+In the other approach, database versions are timestamps that are based
+on real time.
+In this approach, given a version~$v_1$ that was used by
+transaction~$T_{v_1}$, it is not possible to directly determine the next
+version~$v_2$ used by the next transaction~$T_{v_2}$, unless all the
+different versions are separately stored.
+Salzberg and Lomet~\cite{salzberg:1995:branched} suggest using the
+former approach. 
+They use an array that maps the sequence numbers into real-time
+instants. 
+Converting from database versions to real time is
+straightforward, as the array can be directly accessed from the right
+offset.
+To convert back from real-time instants to database versions,
+a binary search can be used, as the real-time instants are also
+sorted in increasing order.
+We will assume that this approach is used in the algorithms presented
+in this dissertation.
+
+% Transaction identifier
+The ordering of the database versions must be based on the commit-time
+ordering of transactions to ensure consistency of the data items between
+different versions. 
+An ordering that is based on the starting time of transactions, for
+example, guarantees consistency only if the transaction commit order is
+forced to be the same as the starting order.
+Because we do not wish to impose such a requirement, the data items created
+by a transaction must receive the commit-time version of the transaction,
+which may differ from the starting time of the transaction. 
+Because the commit-time version is not known at the beginning of the
+transaction, active transactions must use a separate identifier to identify
+their updates. 
+Following Lomet et~al.~\cite{lomet:2006:transactiontime}, we assume
+that a transaction~$T$ is assigned a \emph{transaction identifier},
+denoted by \txid{T}\phantomsection\label{def:txid}, when it is
+created.
+When the transaction~$T$ commits, a \emph{commit-time version},
+denoted by \commitver{T}\phantomsection\label{def:commitver}, is assigned to
+the transaction. 
+The commit-time version is the version used by the database to order the data
+items, and users of the database system use it to query previous database
+states.
+% We will use the term commit-time version when we wish to emphasize the
+% distinction between versions and transaction identifiers.
+In contrast, the transaction identifiers are internal to the
+database system and not seen by the users. 
+
+% Lazy timestamping and eager timestamping
+The discrepancy between the transaction identifiers and the
+commit-time versions is a common challenge in all multiversion
+databases.
+Often the entries that represent the data items need to be initially
+stored with the transaction identifier, and later on revisited to
+change the transaction identifier into the commit-time version.
+A \emph{lazy
+timestamping}\phantomsection\label{def:lazy-ts}
+scheme~\cite{lomet:2006:transactiontime} initially uses the transaction
+identifier to store the versions and lets the transaction commit. 
+Later, when the entries are accessed, the transaction identifiers are changed
+to the commit-time version of the transaction.
+In contrast, in an \emph{eager
+timestamping}\phantomsection\label{def:eager-ts}
+scheme~\cite{lomet:2006:transactiontime}, the temporary identifiers are
+changed as soon as the transaction commits.
+
+% Data-update model (single-action tx)
+The data-update model adopted by most earlier proposals for indexing
+versioned data, including the model adopted for the multiversion
+\Btree~(MVBT) of Becker et~al.~\cite{becker:1996:mvbt} and the multiversion
+access structure~(MVAS) of Varman and Verma~\cite{varman:1997:multiversion},
+assumes that each update action creates a new version of the database, so
+that the versions are unique across all versions of all data items.
+This model is not adequate for modern transactional applications, because
+data items within a single transaction should be assigned the
+same version.
+Following Salzberg et~al.~\cite{salzberg:2004:framework} and
+Lomet et~al.~\cite{lomet:2006:transactiontime}, we assume a
+multi-action-transaction approach in which all data-item versions
+created by a transaction~$T$ get the same commit-time version
+\commitver{T}, unless the transaction updates a data item more than
+once, in which case only the final data-item version gets the
+commit-time version and remains in the database.
+
+% % Data items and data-item identification
+We will now formalize the notion of data items in a multiversion
+database. 
+Remember from \secref{sec:mv-data:snapshot} that the logical
+database consists of tuples of the form $(k, w)$, where $k$ is the key of the
+data item, and $w$ the value associated with the item.
+Because the data items need an additional version attribute---the life
+span~\vrmark{v} (\defref{def:lifespan})---the data item model used in
+snapshot databases is not sufficient for multiversion databases. 
+
+% % The data items in a multiversion database have an associated life
+% % span~\vrmark{v} (\defref{def:lifespan}). 
+% The data items in a multiversion database are thus tuples
+% of the form $(k, \vrmark{v}, w)$, where $\vrmark{v} = [v_1, v_2)$ is
+% the life span of the data item. 
+
+\thmskip
+\begin{definition}
+\label{def:mv-item}
+A \emph{multiversion data item} in a multiversion database is a tuple of the
+form $(k, \vrmark{v}, w)$, where $k$ and $w$ correspond to the key and value
+of the snapshot data items of the logical database, and $\vrmark{v}$ is the
+life span of the multiversion data item. 
+The life span $\vrmark{v}$ is either $[v_1, \infty)$, if the
+data item has not been deleted; or $[v_1, v_2)$, if the data item has
+been deleted.
+The version~$v_1$ is the commit-time version of the transaction that inserted
+the data item, and version~$v_2$ is the commit-time version of the
+transaction that deleted the data item.
+\end{definition}
+\thmskip
+
+\thmskip
+\begin{definition}
+\label{def:pending-update}
+The updates performed by an active updating transaction~$T$ are called
+\emph{pending updates}, and they are represented by tuples of the form
+$(k, \txid{T}, \updatemark)$, where $k$ is the key, \txid{T} is the
+transaction identifier, and $\updatemark$ tells whether the update is
+an insertion or a deletion.
+In the case of an insertion, $\updatemark = w$, the value of the data item;
+and in the case of a deletion, $\updatemark =
+\deletemark$\phantomsection\label{def:deletemark}, a special marker value used
+to denote item deletion.
+\end{definition}
+\thmskip
+
+In the logical database model, the pending updates created by a
+transaction~$T$ are incorporated into the database immediately when $T$
+commits, either by inserting new data items or by updating the existing
+data items.
+Depending on the implementation of the multiversion database, the
+entries that are used to store the pending updates may exist for some time
+after the transaction has committed. 
+In this situation, the data-item entries in the database may differ from the
+data items of the logical database, and the database management system must
+be prepared to apply the effects of the pending updates on the existing data
+items during the execution of database queries.
+
+With this definition, the logical data items can be identified by the
+key-life-span pair $(k, \vrmark{v})$, or $(k, [v_1, v_2))$.
+However, we can also uniquely identify a data item using only the
+creation time of the data item, that is, the version~$v_1$.
+In this dissertation, we will use the pair $(k, v_1)$ to uniquely
+identify a data item $(k, [v_1, v_2), w)$.
+This is possible, because the life spans of data items with the
+same key~$k$ cannot overlap.
+We also define all other pairs $(k, v)$, with version~$v$ in
+the life span of the data item, $v_1 < v < v_2$, to refer to the
+same data item.
+With this definition, users of the database system may query a data
+item using any version that is covered by the life span of the data
+item.
+
+
+
+%% Read-Only Transactions
+%%---------------------------------------------------------------------
+\section{Read-Only Transactions}
+\label{sec:mv-data:read-only-tx}
+
+% Defining snapshot version
+A fully concurrent multiversion database management system allows any
+number of read-only and updating transactions to operate
+on the database concurrently. 
+As explained in \secref{sec:mv-data:queries}, the read-only 
+transactions must explicitly specify which version they want to read;
+however, they are only allowed to read versions that were already
+committed when the read-only transaction began.
+In our model, database users must supply the queried version
+at the beginning of the read-only transaction.
+All the queries of the transaction then target the same version of
+the database.
+We call this version, associated with transaction~$T$, the \emph{snapshot
+time} of $T$, and denote it by \snapver{T}\phantomsection\label{def:snapver}.
+
+% Definition of read-only transactions on multiversion databases
+% Definition of transactions in general is assumed to be known
+A \emph{read-only transaction}~$T$ operating on a multiversion
+database may contain the following actions:
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+
+  % Begin read-only
+  \item \action{begin-read-only}$(\text{version}~v)$: begins a new read-only
+  transaction; this action records the value $\snapver{T}
+  \leftarrow v$ for the transaction.
+  At this point, it is also checked if $v \leq \comver$.
+  If $v > \comver$, the transaction is either aborted or blocked until
+  $v \leq \comver$.
+
+  % Single-key query
+  \item \action{query}$(\text{key}~k) \to \returnmark$: retrieves
+  the data item $(k,[v_1,v_2),w)$ that covers version \snapver{T},
+  that is, $v_1 \leq \snapver{T} < v_2$. 
+  Returns $\returnmark = w$ if such a data item exists, otherwise
+  returns $\returnmark = \nullmark$.
+
+  % Range query
+  \item \action{range-query}$(\text{range}~[k_1, k_2)) \to
+  \returnset$: this action retrieves the set of data items
+  $(k_i,[v_i^1,v_i^2),w_i)$ with $k_1 \leq k_i < k_2$ and $v_i^1 \leq
+  \snapver{T} < v_i^2$.
+  Returns the set \returnset\ of snapshot data items $(k_i, w_i)$
+  representing the multiversion data items alive at the queried version
+  \snapver{T}.
+
+  % Commit read-only
+  \item \action{commit-read-only}: commits the transaction~$T$ by removing
+  it from the system.
+\end{itemize}
+
+A read-only transaction that is aborted by the system may directly be removed
+from the database system; no undo actions are necessary.
+Read-only transactions in general do not involve any logging, because they
+perform no updates to the database.
+
+\begin{figure}
+\begin{center}
+% \begin{enumerate}
+% \setlength{\itemsep}{0pt}
+%   \item $T_1$ inserts entries $(1, w_1)$, $(2, w_2)$, $(3,
+%   w_3)$; commits with version $v_1$.
+%   \item $T_2$ inserts entries $(3, w_3')$, $(4, w_4)$; commits
+%   with version $v_2$.
+%   \item $T_3$ inserts entries $(1, w_1')$, $(5, w_5)$; commits
+%   with version $v_3$.
+% \end{enumerate}
+\input{images/transaction-db-example}
+\figcaption{An example history of a multiversion database}%
+{The figure shows the contents of a database created by three transactions
+with commit-time versions $v_1$, $v_2$, and $v_3$.
+The arrow on the top shows the latest committed version $\comver =
+v_3$.}
+\label{fig:mv-tx-workload}
+\end{center}
+\end{figure}
+
+An example of a read-only transaction, operating on the example
+multiversion database shown in \figref{fig:mv-tx-workload}, is given below:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+  \item \action{begin-read-only}$(v_2)$
+  \item \action{query}$(1) \to w_1$
+  \item \action{query}$(3) \to w_3'$
+  \item \action{query}$(5) \to \nullmark$
+  \item \action{range-query}$([0,10)) \to \{ (1,w_1), (2,w_2), (3,w_3'),
+  (4,w_4) \}$
+  \item \action{commit-read-only}
+\end{enumerate}
+
+
+
+%% Updating Transactions
+%%---------------------------------------------------------------------
+\section{Updating Transactions}
+\label{sec:mv-data:updating-tx}
+
+All updating transactions operating on multiversion databases must always
+operate on live data items. 
+Standard multiversion concurrency-control algorithms are used to
+maintain data consistency, so that concurrent updating transactions
+do not update the same data items.
+
+As discussed in \secref{sec:mv-data:mv-data}, data items created by and
+existing data items deleted by an updating transaction~$T$ must eventually
+receive the commit-time version \commitver{T} as the version associated with
+the data item. 
+For a write action, the new data item must have \commitver{T} as its
+creation time, and for a delete action, the deleted data
+item must have \commitver{T} as its deletion time (see
+Definitions~\ref{def:lifespan} and~\ref{def:mv-item}). 
+
+Because the commit-time version of a transaction~$T$ is not known during the
+execution of~$T$, the updates of $T$ are represented by pending updates (see
+\defref{def:pending-update}) that use the transaction identifier~\txid{T} to
+separate the updates of different transaction.
+When the transaction~$T$ commits, the database management system
+performs a \emph{release-version} action that incorporates the
+pending updates into the database, using the commit-time version
+\commitver{T}.
+The committed version \commitver{T} is visible to other transactions after
+the release-version operation has completed.
+
+An \emph{updating transaction}~$T$ operating on a multiversion
+database may contain the following actions: 
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+ 
+  % Begin updating transaction
+  \item \action{begin-update}: begins a new updating transaction; this
+  action records the snapshot version~$\snapver{T} \leftarrow
+  \comver$, and creates the transaction identifier~$\txid{T}
+  \leftarrow$ \emph{new identifier}.
+
+  % Single-key query
+  \item \action{query}$($key~$k) \to \returnmark$: if the
+  transaction~$T$ has already performed an update action on the key~$k$, so
+  that a pending update $(k, \txid{T}, \updatemark)$ exists, this action
+  returns either $\returnmark = \updatemark$ if the pending update was a
+  write action, or $\returnmark = \nullmark$ if the pending update was a
+  deletion (i.e., $\updatemark = \deletemark$). 
+  If such a pending update does not exist, the action retrieves
+  the data item $(k,[v_1,v_2),w)$ such that $v_1 \leq \snapver{T}
+  < v_2$. 
+  If such an item is found, the action returns $\returnmark = w$;
+  otherwise the action returns $\returnmark = \nullmark$.
+
+  % Range-query
+  \item \action{range-query}$($range~$[k_1, k_2)) \to
+  \returnset$: this action retrieves all the pending updates $(k_i,
+  \txid{T},\updatemark_i)$ and all data items
+  $(k_i,[v_i^1,v_i^2),w_i)$ such that $k_1 \leq k_i < k_2$ and $v_i^1 \leq
+  \snapver{T} < v_i^2$. 
+  For each key~$k_i$, if a pending update for that key is found,
+  the return set \returnset\ contains the data item $(k_i, \updatemark_i$),
+  if $\updatemark_i \neq \deletemark$.
+  For each key $k_i$, such that there is no pending update for that
+  key but there is a data item with key $k_i$, the return
+  set \returnset\ contains the snapshot data item $(k_i, w_i)$.
+  A pending update that is a deletion thus prevents the deleted key from 
+  appearing in the result set.
+
+  % Write action
+  \item \action{write}$($key~$k,$ data~$w)$: a forward-rolling action
+  that either inserts a pending update $(k, \txid{T}, w)$ into
+  the database, if no earlier pending update of the form $(k, \txid{T},
+  \updatemark)$ exists; or replaces the existing pending update $(k,
+  \txid{T}, \updatemark)$ with $(k, \txid{T}, w)$.
+  This action writes a redo-undo log record that contains sufficient
+  information for redoing or undoing the write action.
+
+  % Delete action
+  \item \action{delete}$($key~$k)$: this action logically deletes an existing
+  data item.
+  If the multiversion database contains a
+  pending update of the form $(k,\txid{T},\updatemark)$, $\updatemark
+  \neq \deletemark$, this action replaces it with
+  $(k,\txid{T},\deletemark)$.
+  If the database does not contain any pending update
+  $(k,\txid{T},\updatemark)$, then this action is legal if the
+  multiversion database contains a live data item $(k, [v_1,\infty),
+  w)$.
+  In this case, the action inserts a pending update $(k,
+  \txid{T}, \deletemark)$.
+  The action finishes by writing a redo-undo log record that contains
+  sufficient information for redoing or undoing the deletion.
+
+  % Set savepoint
+  \item \action{set-savepoint} $\to p$: creates a savepoint
+  by generating a savepoint identifier~$p$ and by returning it to the
+  transaction.
+
+  % Rollback to savepoint
+  \item \action{rollback-to-savepoint}$($savepoint~$p)$: rolls the transaction
+  back to a preset savepoint~$p$.
+  This action is followed by the \action{undo-write} and
+  \action{undo-delete} actions for the \action{write} and
+  \action{delete} actions done after setting savepoint~$p$, executed
+  in the reverse order. 
+
+  % Commit
+  \item \action{commit-update}: commits an active updating transaction.
+  This action generates a commit-time version and assigns it to the
+  transaction by setting $\commitver{T} \leftarrow$ \emph{new commit-time
+  version}; 
+  updates the current-version counter $\comver \leftarrow
+  \commitver{T}$; and 
+  invokes the \action{release-version} method to incorporate the pending
+  updates into the database.
+
+  % Version release
+  \item \action{release-version}: 
+  applies the pending updates performed by the transaction $T$ to the
+  multiversion database.
+  For each write action described by a pending update
+  $(k,\txid{T},w)$, the action retrieves the live data item
+  $(k,[v_1,\infty),w')$, if such an item exists. 
+  If such a live data item exists, it is replaced by
+  $(k,[v_1,\commitver{T}),w')$.
+  Finally, this action inserts a data item $(k,
+  [\commitver{T},\infty), w)$ into the multiversion database.
+  For each delete action represented by a pending update
+  $(k,\txid{T},\deletemark)$, the action retrieves the live
+  data item $(k,[v_1,\infty),w')$, if such an item exists.
+  If such an item is found, this action replaces it by
+  $(k,[v_1,\commitver{T}),w')$. 
+  No such item is necessarily found, if the transaction first
+  inserted a new data item and then deleted it.
+  In this case, no action is taken for this pending update.
+  Finally, this action removes all the pending updates created by
+  $T$---i.e., pending updates of the form $(k, \txid{T},
+  \updatemark)$---from the database.
+
+  % Abort 
+  \item \action{abort}: labels the updating transaction as aborted and
+  starts the backward-rolling phase.
+  This action is followed by the \action{undo-write} and \action{undo-delete}
+  actions for all the not-yet-undone \action{write} and \action{delete}
+  actions of the forward-rolling phase, executed in reverse order.
+
+  % Undo the write action
+  \item \action{undo-write}$($log record~$r)$: backward-rolling action
+  that undoes the write action logged with the log record~$r$ by 
+  either removing the pending update $(k,\txid{T},w)$; or by
+  replacing it with $(k,\txid{T},\updatemark)$, if the
+  corresponding write action replaced an earlier update by the same
+  transaction.
+
+  % Undo the delete action
+  \item \action{undo-delete}$($log record~$r)$: backward-rolling action
+  that undoes the delete action logged with~$r$ by 
+  either removing the pending update
+  $(k,\txid{T},\deletemark)$; or by replacing it with
+  $(k,\txid{T},w)$, if the corresponding delete replaced an 
+  earlier update by the same transaction.
+
+  % Finish rollback 
+  \item \action{finish-rollback}: finishes the backward-rolling phase
+  of an aborted updating transaction.
+\end{itemize}
+
+An example of an updating transaction, operating on the example database
+shown in \figref{fig:mv-tx-workload} in the previous section, is given below:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+  \item \action{begin-update}
+  \item \action{query}$(1) \to w_1'$
+  \item \action{range-query}$([0,10)) \to \{ (1,w_1'), (2,w_2), (3,w_3'),
+  (4,w_4), (5,w_5) \}$
+  \item \action{delete}$(4)$
+  \item \action{set-savepoint} $\to p_1$
+  \item \action{write}$(6,w_6)$
+  \item \action{range-query}$([0,10)) \to \{ (1,w_1'), (2,w_2), (3,w_3'),
+  (5,w_5), (6,w_6) \}$
+  \item \action{rollback-to-savepoint}$(p_1)$
+  \item \action{undo-write}$(r)$
+  \item \action{range-query}$([0,10)) \to \{ (1,w_1'), (2,w_2), (3,w_3'),
+  (5,w_5) \}$
+  \item \action{commit-update}
+\end{enumerate}
+
+The form of transactions in multiversion databases is a generalization of 
+the recoverable snapshot database theory presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, with the
+addition of setting and restoring savepoints as presented for B-trees in
+page-server database systems by Jaluta et~al.~\cite{jaluta:2006:page-server}. 
+% A committed transaction is an action sequence consisting of the
+% following actions:
+% (1)~a \action{begin-update} action,
+% (2)~a forward-rolling phase consisting of zero or more \action{query},
+% \action{range-query}, \action{write}, \action{delete},
+% \action{set-savepoint}, and \action{rollback-to-savepoint} actions, and
+% (3)~a \action{commit} action. 
+% An aborted updating transaction is an action sequence consisting of
+% the following actions: 
+% (1)~a \action{begin-update} action,
+% (2)~a forward-rolling phase consisting of zero or more \action{query},
+% \action{range-query}, \action{write}, \action{delete}, \action{set-savepoint},
+% and \action{rollback-to-savepoint} actions, 
+% (3)~an \action{abort} action,
+% (4)~a backward-rolling phase that consists, in reverse order, of the
+% \action{undo} actions for the \action{write} and \action{delete} actions
+% of the forward-rolling phase, and
+% (5)~a \action{finish-rollback} action.
+To abort and rollback an entire transaction in this model, it is possible
+just to remove all the pending updates of the form $(k, \txid{T},
+\updatemark)$ from the database.
+Rolling back to a predefined savepoint, however, requires that the undo
+actions are properly defined and that logging is used so that it is
+possible to restore the earlier pending updates by the same transaction that
+have been overwritten. 
+The logging of the actions is dependent on the implementation. 
+Examples of how the actions can be logged are given in
+Chapters~\ref{chapter:tmvbt} and~\ref{chapter:cmvbt}.
+
+
+%% Concurrency Control
+%%---------------------------------------------------------------------
+\section{Concurrency Control}
+\label{sec:mv-data:cc}
+
+Transaction isolation in multiversion database systems can be
+maintained by traditional concurrency\hyp{}control algorithms, but
+there are multiversion concurrency\hyp{}control algorithms that are
+better suited to the task.
+These algorithms take advantage of the different versions of the data
+items stored in the database.
+Each data-item update creates a new version of the item, and the
+different versions persist in the database system, for at least as long as
+the transaction that created the data item is active.
+This is a requirement for using multiversion concurrency-control
+algorithms in snapshot databases.
+Read-only transactions may thus run queries without acquiring locks on
+keys, because writes by other transactions do not modify the versions
+that are being read.
+Early multiversion concurrency\hyp{}control algorithms include
+multiversion timestamping, multiversion locking and the multiversion
+mixed method.
+These are presented, for example, in an article by Bernstein and
+Goodman~\cite{bernstein:1983:multiversion} and in the textbook of Bernstein
+et~al.~\cite{bernstein:1987:cc-n-r}.
+These algorithms generally assign unique timestamps to transactions and
+store timestamp-identified copies of any modified data items.
+These copies may be overwritten only after the transaction that created them
+has committed.
+
+% Multiversion timestamp ordering
+The \emph{multiversion timestamping method}, or \emph{multiversion timestamp
+ordering}, was originally presented by Reed in his PhD
+thesis~\cite{reed:1987:naming}. 
+This concurrency-control algorithm uses only item timestamps to control
+access to items; the transactions take no locks on keys. 
+Modifications to data items create new versions of the items, and
+each transaction reads the most recent version that precedes the
+transaction's own timestamp. 
+Here we assume that the transaction identifiers are based on the starting
+time of the transaction, and that the timestamp of a transaction~$T$ is thus
+\txid{T}. 
+The data-item timestamps can be used to ensure that the transactions operate
+in a serializable isolation level.
+When a transaction~$T_i$ issues a write of value~$w$ to key~$k$, the
+following is considered:
+if there is a transaction~$T_j$ with a larger timestamp
+$\txid{T_j} > \txid{T_i}$ that has already read the earlier
+value~$w'$ of key~$k$, then the write of~$T_i$ is not allowed, and $T_i$ is
+aborted, or the write action is simply denied.
+Additionally, the commit of transaction~$T_i$ must be delayed until all 
+transactions~$T_k$ that have written data that $T_i$ has read have
+committed.
+If any of the transactions~$T_k$ aborts, $T_i$ must also be aborted.
+By denying such writes-after-reads, the multiversion timestamping method
+can be proven to form serializable
+histories~\cite{bernstein:1983:multiversion,bernstein:1987:cc-n-r}.
+
+% Multiversion locking
+The \emph{multiversion locking method} is another approach that uses locking,
+and not timestamps, to manage concurrent access to the database.
+It is a multiversion method, however, because more than one version of data 
+items is stored.
+The multiversion locking method marks item modifications first as
+\emph{uncertified}, and later on tries to \emph{certify} all of them.
+The transaction may commit only if the certification is successful. 
+Bernstein and Goodman~\cite{bernstein:1983:multiversion}
+discuss a general algorithm for multiversion locking; whereas in their
+textbook~\cite{bernstein:1987:cc-n-r} they describe the two-version
+two-phase locking algorithm (\abbr{2V2PL})\@.
+In \abbr{2V2PL}, transactions acquire read and write locks as in
+two-phase locking, but the write locks only conflict with each other, not
+with read locks.
+For each data item, a single extra version is kept stored in the database
+(the uncertified update; there can be no more than two uncertified updates at
+a time because of the write locks).
+When a transaction commits, it tries to upgrade all of its write locks into
+\emph{certify locks}.
+The certify locks are defined to conflict with all other lock types,
+including read locks.
+If other transactions thus hold any read locks on any keys that the
+committing transaction has updated, the commit operation is delayed until the
+conflicting transaction commits and releases the locks.
+This can naturally lead to deadlocks, which must then be detected and
+resolved by aborting one of the transactions.
+The transactions executing under multiversion locking algorithms also form
+serializable histories.
+
+% Multiversion mixed method
+The \emph{multiversion mixed method} uses both timestamping and locking to
+control the actions of transactions.
+In short, read-only transactions are controlled with multiversion
+timestamping, and updating transactions with multiversion locking.
+That is, read-only transactions are assigned a timestamp that is smaller than
+the timestamp of any active uncertified transaction.
+The read-only transactions may then directly read the latest version
+preceding their assigned timestamps, without needing to lock any keys.
+The updating transactions, on the other hand, lock updated keys like in the
+multiversion locking approach.
+This time, however, the data items are timestamped.
+As noticed in \secref{sec:mv-data:mv-data}, the items must be
+timestamped according to their commit-time ordering.
+In the multiversion mixed method, the timestamps are assigned when the
+transaction commits (after the updates have been verified).
+Bernstein et~al.~\cite{bernstein:1987:cc-n-r} also suggest replacing the
+timestamps by commit lists so that the items do not need to be revisited.
+However, this approach requires tracking and passing around commit lists that
+tell which transactions have committed.
+
+% Snapshot isolation
+A more recent multiversion concurrency-control algorithm is the 
+\emph{snapshot isolation} algorithm, or
+SI~\cite{berenson:1995:sql-critique,cahill:2008:snapshot,fekete:2005:snapshot-isolation}\phantomsection\label{def:si},
+which is an extension of the multiversion mixed method. 
+A transaction~$T$ executing under snapshot isolation obtains a
+timestamp at the beginning of the transaction, or at any time before
+the first read (or write) action.
+The transaction can only read data items with timestamps that
+precede the start timestamp of the transaction.
+When the transaction~$T$ commits, it gets a commit timestamp that is
+larger than any start timestamp or commit timestamp in the system.
+The updates made by the transaction must receive this commit
+timestamp, as noted before.
+The transaction will successfully commit only if no other transaction $T'$
+with
+%its commit timestamp in the interval of $T$
+$\snapver{T} < \commitver{T'} < \commitver{T}$ wrote data
+that $T$ also wrote.
+If there is such a transaction~$T'$, then $T$~must abort. 
+This principle is called \emph{first-committer-wins}.
+The original definition by Berenson
+et~al.~\cite{berenson:1995:sql-critique} notes that snapshot
+isolation precludes all the phenomena defined by ANSI
+SQL-92~\cite{ansi:1992:sql}, but is still weaker than some of the
+isolation levels defined by those phenomena.
+SI allows histories such as 
+\[b_1 r_1[x] r_1[y] b_2 r_2[x] r_2[y] w_2[x] c_2 w_1[y] c_1.\] 
+The history is accepted in SI, because the write sets of $T_1$ and $T_2$ are
+disjoint, but it is not serializable, because $r_1[x]$ is an unrepeatable
+read. 
+% as there may be a constraint between the
+% values of the data items with keys $x$~and~$y$ that is now broken, even
+% though the transactions do not write the same data items.
+% In this case, the constraint would allow either the write $w_2[x]$ or the
+% write $w_1[y]$ on its own, but not both of them.
+% As an example, suppose that $x$ and $y$ represent two accounts of the same
+% user, and the balances of the accounts are $w_x = 50$ and $w_y = 50$, where
+% $w_k$ is the balance of account $k$ (in euros).
+% The constraint is that the account balance of all the accounts of a single
+% user must be positive, that is, $w_x + w_y \geq 0$ in this case.
+% Suppose now that the user draws out $70$~\euro\ from account $x$ from a cash
+% machine at the same time that a payment process takes $50$~\euro\ from
+% account $y$ to pay a scheduled bill.
+% Either of these payments would lead to a legal state on its own (the user
+% subtracting 70~\euro\ leads to $w_x'=-20$, $w_y=50$, making the total
+% balance 30~\euro, and the background payment leads to $w_x=50$, $w_y'=0$,
+% with a total balance of $50$~\euro).
+% If both are run, the total balance falls to $-20$~\euro, which is not allowed. 
+% The SI~article~\cite{berenson:1995:sql-critique} in fact defines a
+% new transaction anomaly that happens in this situation under snapshot
+% isolation, namely a write skew. 
+This history is an example of a \emph{write skew} which happens when
+transaction~$T_1$ first reads $x$ and $y$, which are consistent with a
+constraint~$C$, and then $T_2$ reads $x$ and $y$, writes $x$, and commits. 
+If $T_1$ now writes $y$, the constraint~$C$ may be violated.
+Regardless of the non-serializability of snapshot isolation, it is widely
+used, and Oracle's implementation of the serializable isolation level is
+based on snapshot
+isolation~\cite{cahill:2008:snapshot,fekete:2005:snapshot-isolation,oracle:2009:specs}.
+Oracle thus needs to store the history of recent data item versions
+in data pages to be able to apply snapshot isolation.
+
+Snapshot isolation can be made serializable, however.
+Fekete et~al.~\cite{fekete:2005:snapshot-isolation} show how to
+analyze applications and to modify them so that they are equivalent but
+preclude the write skew anomalies.
+One such technique is to materialize the conflicts, i.e., to write
+the constraints into the database relation, thus enforcing
+write-write conflicts into the transactions.
+Alomari et~al.~\cite{alomari:2008:si-cost} show that the modified
+applications may be less efficient, but the performance loss is
+negligible if the correct method is used.
+Cahill et~al.~\cite{cahill:2008:snapshot} extend the snapshot
+isolation algorithm by adding book-keeping code to detect
+situations where non-serializable executions could occur.
+If such a situation is found, one of the transactions is aborted.
+This method guarantees serializability for all transactions.
+Cahill et~al.\ also present test results that show that the
+performance of the serializable snapshot isolation algorithm is
+comparable to snapshot isolation, and always better than strict
+two-phase locking.
+
+The definition of snapshot isolation~\cite{berenson:1995:sql-critique} does
+not include any suggestions on how the isolation level should be enforced.
+Standard locking is inadequate, because a transaction~$T$ must abort if it
+tries to update a data item that has been updated by an overlapping but
+already committed transaction~$T'$.
+Alomari et~al.~\cite{alomari:2008:si-cost} describe how the \abbr{PostgreSQL}
+database implements snapshot isolation by having each transaction take
+exclusive locks on any modified data items; and by aborting any
+transaction~$T$ that tries to modify a data item for which the latest version
+$(k, [v_1, v_2), w)$ has been modified after transaction~$T$ begun, so that
+$v_1 > \snapver{T}$.
+
+We do not presuppose that snapshot isolation be used in connection with the
+database structures and algorithms presented in this dissertation. 
+However, we do assume that such a multiversion concurrency-control
+algorithm is used that allows read-only transactions to operate without
+blocking updating transactions and vice versa.
+We will use the snapshot isolation algorithm in our examples.
+
+
+%% Structure-Modification Operations
+%%---------------------------------------------------------------------
+\section{Structure-Modification Operations}
+\label{sec:mv-data:smo}
+
+When a database page becomes filled with data items, it needs to be
+split into two separate pages using a page-split operation.
+Similarly, when enough data items in a page have been marked
+as deleted, the page needs to be merged with a sibling page using a
+page-merge operation to maintain an appropriate minimum number of live data
+items in each page. 
+These operations are called \emph{structure-modification
+operations}\phantomsection\label{def:smo}, or SMOs.
+In snapshot database theory, the algorithms of the ARIES family use
+\emph{nested top actions}~\cite{mohan:1992:aries,mohan:1992:aries-im} when 
+executing structure-modification operations. 
+% These special actions are applied by the database management system.
+% They interrupt the transaction that triggered the SMO to modify the
+% tree structure.
+%, commit when the modification is complete, and
+%then resume the originating transaction.
+When a structure-modification operation begins, the log sequence number
+(LSN\phantomsection\label{def:lsn}) of the last action performed prior to the
+SMO is recorded.
+All the individual operations required by the SMO are logged using nested top
+actions.
+When the SMO finishes, the Undo-Next-LSN~\cite{mohan:1992:aries-im}
+of the last nested top action is set to the LSN value recorded at the
+beginning of the SMO, so that the action chain determined by the
+Undo-Next-LSN values skips the operations performed by the SMO, if the SMO
+has finished.
+The effect of this technique is that it breaks the
+standard backward chaining of log records, so that 
+%the undo phase of restart recovery
+partial and total rollbacks skip the nested top actions.
+The SMOs are not undone even if the transaction that triggered
+the SMO aborts and is rolled back.
+
+There are, however, some challenges with nested top actions.
+They often require tree latches or special structure-modification
+bits to be set on the database pages so that concurrent transactions
+can notice that a structure-modification operation is ongoing.
+They may also be undone if a system crash occurs before all the required 
+nested top actions have finished.
+Jaluta et~al.\ have proposed a more straightforward method for
+performing structure-modification operations for database index
+structures~\cite{jaluta:2003:recoverable,jaluta:2005:blink,jaluta:2006:page-server}.
+In their approach, each structure-modification operation targets a single page
+of the index structure, requiring modifications to be made to at most three
+pages at two adjacent levels (for the \Btree\ index): one parent page, and two
+sibling child pages.
+This also means that at most three different pages need to be latched
+at a time (again, for the \Btree; different index structures
+may require different number of pages to be latched at a time). 
+If an SMO at a lower level causes an SMO in an upper level, the SMO at
+the upper level is applied before the SMO at the lower level.
+
+Each structure-modification operation is logged using a single redo-only log
+record.
+In contrast to nested top actions, interrupted SMOs are never undone
+in this approach, and the index structure remains consistent after each SMO,
+so that each SMO transforms a structurally consistent and balanced index tree
+into another structurally consistent and balanced index tree.
+The log records must contain sufficient information of all the
+entries moved or copied between pages, so that the effect of the operation
+can be redone on any single page involved in the operation, as is required
+by the ARIES algorithm~\cite{mohan:1992:aries}.
+This approach does not require any special structure-modification bits or
+tree latches for applying the modification. 
+We will use this approach to apply structure-modification operations
+to the index structures discussed in this dissertation.
+
+
+%% Other comments
+%%---------------------------------------------------------------------
+% - Basics of concurrency control and recovery are assumed to be
+%   known
+% - ARIES will be explained in sufficient detail (with references)
+%   when logging is explained 

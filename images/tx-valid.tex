@@ -1,0 +1,46 @@
+\subfigure[Before]{%
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ox) at ($(oo) + (0,5.6)$);
+  \coordinate (ot) at ($(oo) + (5,0)$);
+
+  \coordinate (a) at ($(o) + (0,1)$);
+  \coordinate (b) at ($(o) + (1,2)$);
+  \coordinate (c) at ($(b) + (-1,1)$);
+  \coordinate (d) at ($(c) + (2,1)$);
+  
+  \draw[|-|] (a) -- node[above] {$(1,\alpha)$} ($(a) + (2,0)$);
+  \draw[|-|] (b) -- node[above] {$(2,\beta)$} ($(b) + (3,0)$);
+  \draw[|-|] (c) -- node[above] {$(3,\gamma)$} ($(c) + (1,0)$);
+  \draw[|-|] (d) -- node[above] {$(4,\delta)$} ($(d) + (2,0)$);
+
+  \draw[->] (oo) -- node[lbl,above] {Keys} (ox);
+  \draw[->] (oo) -- node[lbl,below] {Time} (ot);
+\end{tikzpicture}
+%\:
+%\raisebox{\txfigy}{$\Rightarrow$}
+%\:
+}
+\subfigure[After]{%
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ox) at ($(oo) + (0,5.6)$);
+  \coordinate (ot) at ($(oo) + (5,0)$);
+
+  \coordinate (a) at ($(o) + (1,1)$);
+  \coordinate (c) at ($(o) + (0,3)$);
+  \coordinate (d) at ($(c) + (2,1)$);
+  \coordinate (e) at ($(d) + (-1,1)$);
+
+  \draw[|-|] (a) -- node[above] {$(1,\alpha')$} ($(a) + (3,0)$);
+  \draw[|-|] (c) -- node[above] {$(3,\gamma)$} ($(c) + (1,0)$);
+  \draw[|-|] (d) -- node[above] {$(4,\delta)$} ($(d) + (2,0)$);
+  \draw[|-|] (e) -- node[above] {$(5,\epsilon)$} ($(e) + (2,0)$);
+
+  \draw[->] (oo) -- node[lbl,above] {Keys} (ox);
+  \draw[->] (oo) -- node[lbl,below] {Time} (ot);
+
+\end{tikzpicture}%
+}

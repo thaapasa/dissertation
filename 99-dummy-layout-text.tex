@@ -1,0 +1,286 @@
+%%=====================================================================
+%% Transactions on Multiversion Data
+%%=====================================================================
+\chapter{Transactions on Multiversion Data}
+\label{chapter:dummy-layout-text}
+
+% Explanation of the details of transactions on multiversion data.
+% The transaction model.
+% No implementation (index structure) details.
+
+The theory of general transaction processing in traditional 
+databases is well-defined and mature, and the basic principles are
+well presented in many
+textbooks~\cite{bernstein:1987:cc-n-r,gray:1993:transactionprocessing,papadimitriou:1986:cc-theory}.
+In this chapter, we concentrate on the theory of multiversion
+transaction processing, and highlight the differences to the classical
+transaction theory.
+The traditional read-write model assumes that transactions are sequences
+of reads and writes on data items, without distinguishing item deletions and
+insertions from
+updates~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory}.
+The theory of transaction processing in this dissertation is based on
+the recoverable transaction model presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, which in turn is based on the
+model proposed by C.~Mohan~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}.
+In this model, data-item insertions and deletions are made explicit,
+and structure-modification operations are included in the model.
+We assume the partially persistent transaction-time model, as
+described in the introduction.
+
+
+
+%% Challenges With Concurrent Updates
+%%---------------------------------------------------------------------
+\section{Challenges With Concurrent Updates}
+\label{sec:tmvbt:multiupdate}
+
+The structure-modification operations presented in the previous section
+are based on the fact that there can only be a single updating transaction
+operating on the index structure at a time.
+We believe that it is not directly possible to further generalize the index
+structure so that multiple updating transactions could apply their updates
+directly on the leaf pages of the TMVBT index.
+We now present an example of the problematic situations that can arise should
+multiple updating transactions be allowed to operate on the index
+concurrently.
+
+Assume that a transaction~$T_1$ has created a leaf page~$p$ that contains two
+entries inserted by said transaction.
+In this illustrative example, we have $\minlive = 2$, so that
+\invref{inv:tmvbt-live-count} holds for the index structure. 
+The situation after~$T_1$ has committed is depicted in
+\figref{fig:tmvbt:multi-update:initial}.
+
+Assume now that two new transactions~$T_2$ and~$T_3$ perform updates so that
+(1)~$T_2$~inserts entries with keys preceding and succeeding the keys of the
+entries inserted by~$T_1$; and 
+(2)~$T_3$~deletes the entries inserted by~$T_1$.
+If we wish to be able to store the updates of multiple active updating
+transactions in the leaf pages of the TMVBT index, we must use entries such as
+the pending updates defined in \chapref{chapter:mv-data} (see
+\defref{def:pending-update}). 
+One possible way of modeling this situation is shown in
+\figref{fig:tmvbt:multi-update:active}.
+
+\begin{figure}[!htb]
+\begin{center}
+\input{images/tmvbt-concurrent-fail}
+\figcaption{TMVBT invariant fails with concurrent updates}%
+{If transaction~$T_3$ commits before~$T_2$, the number entries that are alive
+at version~\num{2} is zero.}
+\label{fig:tmvbt:multi-update}
+\end{center}
+\end{figure}
+
+If~$T_2$ commits first with a commit-time version~\num{2}, and $T_3$
+afterwards with commit-time version~\num{3}, the logical state of the database
+after both commit operations is shown in
+\figref{fig:tmvbt:multi-update:t2first}. 
+We assume here that a lazy timestamping scheme is employed so that the
+actual entries stored in the database may be the same entries as shown in
+\figref{fig:tmvbt:multi-update:active}, but that when the page is
+later accessed the pending updates on the page will be converted into the
+entries shown in \figref{fig:tmvbt:multi-update:t2first}.
+In this situation, \invref{inv:tmvbt-live-count} holds for the page~$p$,
+because $\entries{1} = 2$, $\entries{2} = 6$, and $\entries{3} = 4$; where
+\entries{v} denotes the number of entries that are alive at version~$v$.
+
+
+%% Fundamentals of Snapshot Database Theory
+%%---------------------------------------------------------------------
+\section{Fundamentals of Snapshot Database Theory}
+\label{sec:mv-data:snapshot}
+
+%In traditional snapshot-database transaction
+%theory~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory},
+%database indexes are collections 
+We assume our logical database consists of data items of the form $(k,
+w)$, where $k$~is the key and $w$~is the value of
+the data item~\cite{sippu:2001:theory}.
+%The value~$w$ can contain the actual data stored with the key (the
+%row in the relation), in the case of a \emph{sparse} or
+%\emph{primary index}; or a pointer to some storage location, in the
+%case of a \emph{dense} or \emph{secondary index}. 
+The logical model thus has no knowledge of any time dimension.
+Databases that follow this data model are called
+\emph{snapshot databases}\phantomsection\label{def:snapshot-database}.
+As \figref{fig:tx-snapshot} shows, any change to a snapshot database
+overwrites the information about previous states.
+
+% TMVBT live count
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-live-count}
+That is, for all versions~$v$ and all pages~$p$, page~$p$ contains at least
+\minlive\ entries that are alive at version~$v$; or $p$ is a root page of
+$S_v$, in which case it contains at least \num{2}~entries that are alive at
+version~$v$; or $p$ is the only page of $S_v$ and contains at least one entry
+that is alive at version~$v$; or $p$ is not part of the search tree~$S_v$ and
+therefore contains no entries that are alive at version~$v$.
+\end{invariant}
+\thmskip
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-snapshot.tex}
+\figcaption{Transaction in a snapshot database}{The transaction has
+executed the schedule $b w[1,\alpha,\alpha'] d[2] w[5,\epsilon] c$.}
+\label{fig:tx-snapshot}
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-valid.tex}
+\figcaption{Transaction in a valid-time database}{The transaction has
+executed the schedule $b w[1,\alpha,\alpha'] d[2] w[5,\epsilon] c$.}
+\label{fig:tx-valid}
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-transaction.tex}
+\figcaption{Transaction in a transaction-time database}{The
+transaction has executed the schedule $b w[1,\alpha,\alpha'] d[2] 
+w[5,\epsilon] c$.
+The arrow on the top shows the latest committed version~\comver.}
+\label{fig:tx-transaction}
+\end{figure}
+
+In the traditional transaction model, transactions in snapshot
+databases consist of user actions that either \emph{write} or
+\emph{read} keys to/from the database.
+In addition, the transaction must issue either a \emph{commit} or an
+\emph{abort action} to indicate that the transaction is finished.
+After an abort action, the read and write actions are undone and the
+transaction commits.  
+A read action of a key $k$ for a transaction $T_i$ is denoted by 
+$r_i[k]$, and a write action by $w_i[k]$.
+Commit and abort are denoted by $c_i$ and $a_i$, respectively.
+This classical transaction model is inadequate for
+modelling key-range queries, next-key queries, and it does not
+differentiate between key insertions, updates, and deletes.
+Mohan has proposed a more general transaction model alongside his 
+ARIES recovery algorithm~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im},
+which Sippu and Soisalon-Soininen have
+further refined~\cite{sippu:2001:theory}. 
+
+\begin{figure}
+\begin{center}
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+  \item $T_1$ inserts entries $(1, w_1)$, $(2, w_2)$, $(3,
+  w_3)$; commits with version $v_1$.
+  \item $T_2$ inserts entries $(3, w_3')$, $(4, w_4)$; commits
+  with version $v_2$.
+  \item $T_3$ inserts entries $(1, w_1')$, $(5, w_5)$; commits
+  with version $v_3$.
+\end{enumerate}
+\caption{An example history of a multiversion database}
+\label{fig:mv-tx-workload-old}
+\end{center}
+\end{figure}
+
+\begin{figure}
+\begin{center}
+\input{images/transaction-db-example}
+\caption{An example history of a multiversion database}
+\label{fig:mv-tx-workload}
+\end{center}
+\end{figure}
+
+Another approach for avoiding phantoms is to use predicate locking,
+but this is often unpractical as predicate satisfiability in general
+is a known \NP-complete problem and thus the approach can be highly
+inefficient~\cite{gray:1993:transactionprocessing}.
+A drawback of the serializable concurrency-control algorithms is that
+they hinder the overall performance of the database system by forcing
+other transactions to wait for access to locked keys.
+Database management systems thus allow the user to set some
+transactions to run on a lower isolation level to enhance the
+performance of the system.
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-split-imi1-example.tex}
+  \figcaption{Example of a page split}
+  {This figure shows a version split followed by a merge with an inactive
+  sibling. 
+  Entries with keys~\num{1} and~{2} are killed and new copies of them are
+  created in page~$p'$, while the entry with key~\num{3} is physically moved
+  from page~$s$ into page~$p'$.}
+  \label{fig:split-imi1-example}
+\end{center}
+\end{figure}
+
+The form of transactions in multiversion databases is a generalization of 
+the recoverable snapshot database theory presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, with the
+addition of setting and restoring savepoints as presented for B-trees in
+page-server database systems by Jaluta et~al.~\cite{jaluta:2006:page-server}.
+\phantomsection\label{def:cmvbt}\label{def:immortaldb}
+\label{def:mvas}
+\label{def:mvbt}
+\label{def:si}
+\label{def:deletemark}
+\label{def:smo}
+\label{def:tmvbt}
+\label{def:vtt}
+\label{def:vbt}
+\label{def:wal}
+\label{def:lru}
+\label{def:cti}
+\label{def:lsn}
+\label{def:dag}
+\label{def:ptt}
+\label{def:tsb}
+\label{def:worm}
+\label{def:wmrm}
+\label{def:mbr}
+
+%% General Transaction Processing
+%%---------------------------------------------------------------------
+\section{General Transaction Processing}
+\label{sec:performance:general}
+Each of the figures shows two graphs, one run with the short
+workloads and another run with the long-transaction workloads.
+The graphs show buffer fixes, page reads and the real time required for each
+test. 
+The \mbox{$x$-axis} in the graphs represents the percentage of updating
+transactions in the workload. 
+The update probabilities were set to \SI{0}{\percent}, \SI{10}{\percent},
+\SI{20}{\percent}, \ldots, \SI{100}{\percent}. 
+As explained in \secref{sec:performance:implementation}, we believe that
+the interval of the maintenance transaction has a direct effect to the
+performance of the CMVBT structure.
+We have therefore run the tests with varying settings for the
+maintenance interval. 
+The interval is denoted~$m$ in the figures, and indicates that we allow $m$
+transactions to commit before running the maintenance transaction.
+When the maintenance transaction is run, it is run $m$ times to apply
+the updates of all the committed transactions into the TMVBT index.
+
+
+\phantomsection
+\label{def:actver}
+\label{def:capacity}
+\label{def:commitver}
+\label{def:entries}
+\label{def:kr}
+\label{def:vr}
+\label{def:maxcomver}
+\label{def:maxsplit}
+\label{def:minlive}
+\label{def:minsplit}
+\label{def:movever}
+\label{def:rootstar}
+\label{def:snapver}
+\label{def:stablever}
+\label{def:txid}
+
+Updating transactions modify the same data set, in the order the
+update actions are issued.
+Concurrency-control and recovery algorithms are used to maintain the
+\abbr{ACID}\phantomsection\label{def:acid} properties of transactions: 
+atomicity, consistency, isolation, and
+durability~\cite{gray:1993:transactionprocessing}. 

@@ -1,0 +1,37 @@
+\subfigure[Before]{%
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ok) at ($(oo) + (0,5.6)$);
+
+  \coordinate[label=right:{$(1,\alpha)$}] (a) at ($(o) + (0,1)$);
+  \coordinate[label=right:{$(2,\beta)$}] (b) at ($(a) + (0,1)$);
+  \coordinate[label=right:{$(3,\gamma)$}] (c) at ($(b) + (0,1)$);
+  \coordinate[label=right:{$(4,\delta)$}] (d) at ($(c) + (0,1)$);
+  
+  \foreach \point in {a,b,c,d}
+    \fill[black] (\point) circle (2pt);
+
+  \draw[->] (oo) -- node[lbl,above] {Keys} (ok);
+\end{tikzpicture}
+%\:
+%\raisebox{2.5\txfigy}{$\Rightarrow$}
+%\:
+}
+\subfigure[After]{%
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ok) at ($(oo) + (0,5.6)$);
+
+  \coordinate[label=right:{$(1,\alpha')$}] (a) at ($(o) + (0,1)$);
+  \coordinate[label=right:{$(3,\gamma)$}] (c) at ($(a) + (0,2)$);
+  \coordinate[label=right:{$(4,\delta)$}] (d) at ($(c) + (0,1)$);
+  \coordinate[label=right:{$(5,\epsilon)$}] (e) at ($(d) + (0,1)$);
+
+  \foreach \point in {a,c,d,e}
+    \fill[black] (\point) circle (2pt);
+
+  \draw[->] (oo) -- node[lbl,above] {Keys} (ok);
+\end{tikzpicture}%
+}

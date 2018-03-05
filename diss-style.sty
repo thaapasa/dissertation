@@ -1,0 +1,494 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{diss-style}[2010/09/15 v1.0 PhD Dissertation Style]
+
+%% Required packages
+%%---------------------------------------------------------------------
+\RequirePackage{float}
+\RequirePackage{multirow}
+\RequirePackage{amsmath}
+\RequirePackage{amsfonts}
+%\RequirePackage{amssymb}
+\RequirePackage{ulem}
+\RequirePackage[square,sort&compress,numbers]{natbib}
+\RequirePackage[overload]{textcase}
+\RequirePackage[FIGBOTCAP,tight,hang,raggedright]{subfigure}
+\RequirePackage{fancyhdr}
+\RequirePackage[chapter,plain]{algorithm}
+\RequirePackage[load-configurations=binary]{siunitx}
+\RequirePackage[orig]{isodate}
+\RequirePackage[e]{esvect}
+\RequirePackage{tikz}
+% Note: ntheorem needs the amsmath option so that labels in equations
+% work
+\RequirePackage[thmmarks,hyperref,amsmath,noconfig]{ntheorem}
+\RequirePackage{nicefrac}
+\RequirePackage[notlof,notlot,chapter]{tocbibind}
+\RequirePackage[titles,subfigure]{tocloft}
+\RequirePackage{graphicx}
+\RequirePackage{longtable}
+\RequirePackage{algorithmic}
+\RequirePackage{booktabs}
+\RequirePackage{hyphenat}
+\RequirePackage[retainmissing]{MnSymbol}
+\RequirePackage{caption}
+\RequirePackage{setspace}
+\RequirePackage{refcount}
+\RequirePackage{totpages}
+%\RequirePackage{cite}
+%\RequirePackage[pagecontinue=false,alphMult=0,AlphMulti=0,fnsymbolmult=false,romanMult=false,RomanMulti=false]{pagesLTS}
+% Hyperref must be the last package, as it patches other packages 
+% pdftitle, pdfauthor, pdfsubject and pdfkeywords are set in
+% tkkdiss.cls
+\RequirePackage[pdftex,final,breaklinks]{hyperref}
+
+
+%% Language and hyphenations
+%%---------------------------------------------------------------------
+\selectlanguage{english}
+
+\hyphenation{data-base}
+\hyphenation{data-bases}
+\hyphenation{time-stamp}
+\hyphenation{time-stamps}
+\hyphenation{time-stamped}
+\hyphenation{time-stamping}
+
+
+%% Layout definitions
+%%---------------------------------------------------------------------
+
+\setlength{\textwidth}{13.1cm}
+
+% Text should be ~3.5cm from the border
+\setlength{\oddsidemargin}{\paperwidth}
+\addtolength{\oddsidemargin}{-\textwidth}
+\addtolength{\oddsidemargin}{-.5\oddsidemargin}
+\addtolength{\oddsidemargin}{-1in}
+
+% Seems that this is not used
+\setlength{\evensidemargin}{\oddsidemargin}
+
+\setlength{\voffset}{-1cm}
+
+
+% Table of contents
+%\renewcommand{\cfttoctitlefont}{\LARGE\sffamily\bfseries}
+%\renewcommand{\cftloftitlefont}{\LARGE\sffamily\bfseries}
+%\renewcommand{\cftlottitlefont}{\LARGE\sffamily\bfseries}
+\renewcommand{\cftchapfont}{\sffamily\large}
+\setlength{\cftbeforechapskip}{2.5ex}
+\renewcommand{\cftchapafterpnum}{\vspace{1ex}}
+
+%\captionsetup[figure]{labelformat=simple,labelsep=quad,labelfont={bf},textfont={rm}}
+%\captionsetup[algorithm]{labelfont={bf},textfont={rm}}
+\captionsetup{labelsep=period,labelfont={bf,sf},textfont={rm}}
+
+\floatname{algorithm}{Algorithm}
+
+% Put floats (figures) closer to text
+\setlength{\textfloatsep}{2ex}
+%\setlength{\textfloatsep}{0.5\textfloatsep}
+
+% Package subfigure with option tight puts the subfigure captions too
+% near the sibfigures themselves. This adds more space.  
+\setlength{\subfigcapskip}{0pt}
+% Tighten the subfigure bottom spacing
+\setlength{\subfigbottomskip}{0pt}
+
+\setlength{\abovecaptionskip}{2ex}
+\setlength{\belowcaptionskip}{0pt} 
+
+% Normal line spacing
+\linespread{1}
+
+% Fancy headers
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+\renewcommand{\chaptermark}[1]{%
+\markboth{\mbox{\upshape\sffamily\MakeUppercase{\chaptername~\thechapter\quad\;#1}}}%
+{\mbox{\upshape\sffamily\MakeUppercase{\chaptername~\thechapter\quad\;#1}}}} 
+\renewcommand{\sectionmark}[1]{%
+\markright{\mbox{\upshape\sffamily\thesection\quad\;#1}}{}}
+
+%\lhead{\fancyplain{}{\leftmark}}
+%\rhead{\fancyplain{}{\textrm{\thepage}}}
+%\cfoot{\fancyplain{\thepage{}}}
+
+% These definitions are used for section start pages (leave the
+% page header empty)
+\fancypagestyle{plaintop}{
+\fancyhf{} 
+\fancyfoot[LE,RO]{\thepage}
+}
+% These definitions are used for the initial pages (preface, etc.)
+% Same as above... 
+\fancypagestyle{plain}{
+\fancyhf{} 
+\fancyfoot[LE,RO]{\thepage}
+}
+% Header definitions for normal pages
+\fancypagestyle{dissertation}{
+% Clear all definitions
+\fancyhf{}
+% Left-side on odd pages, right-side on right pages (current
+% chapter/section name)
+%\fancyhead[LE,RO]{\textsl{\leftmark}}
+\fancyhead[LE]{\textsl{\leftmark}}
+\fancyhead[RO]{\textsl{\rightmark}}
+% Left-side on even pages, right-side on odd pages (page number)
+\fancyfoot[LE,RO]{\thepage}
+}
+
+% Remove the ruler (horizontal line) from the header and footer
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+
+% Remove the space between paragraphs
+\setlength{\parskip}{0pt}
+% Indent the first lines of paragraphs (except directly after a
+% heading)
+\setlength{\parindent}{1.5em}
+
+
+
+%% Two-side options
+%%---------------------------------------------------------------------
+\DeclareOption{distwoside}{
+  % Text should be ~3.5cm from the border
+  \setlength{\oddsidemargin}{3.5cm}
+  \addtolength{\oddsidemargin}{-1in}
+  \setlength{\evensidemargin}{\paperwidth}
+  \addtolength{\evensidemargin}{-\textwidth}
+  \addtolength{\evensidemargin}{-\oddsidemargin}
+  \addtolength{\evensidemargin}{-2in}
+  \setlength{\voffset}{-1cm}
+}
+
+\ProcessOptions
+
+
+
+%% List of abbreviations & list of symbols
+%%---------------------------------------------------------------------
+
+% LoA and LoS use the \loxline macro to add description lines
+% This uses the subsubsection style (which is not used elsewhere in the 
+% disseration)
+\newcommand{\loxline}[3]{\contentsline{subsubsection}{%
+\numberline{\hyperref[#3]{#1}}{\hyperref[#3]{#2}}}{\pageref{#3}}{}}
+
+% Make the LoF indentation zero to match the other contents lists
+\setlength{\cftfigindent}{0pt}
+
+\setlength{\cftsubsubsecindent}{0pt}
+\setlength{\cftsubsubsecnumwidth}{2.8cm}
+\setlength{\cftbeforesubsubsecskip}{0.6em}
+
+
+
+%% Package configuration
+%%---------------------------------------------------------------------
+
+\newcommand{\pagecount}{\ref{TotPages}}
+%\newcommand{\pagecount}{10}
+
+% Hyperref setup
+\hypersetup{plainpages=false}
+\hypersetup{colorlinks=false}
+\hypersetup{pdfborder={0 0 0}}
+\hypersetup{pdfpagemode=UseOutlines}
+\hypersetup{pdfdisplaydoctitle}
+\hypersetup{bookmarksnumbered,bookmarksopen,bookmarksopenlevel=2}
+
+% SI units setup
+\sisetup{round-mode=places,table-auto-round=true}
+
+% These fix the label problems in the algorithmic package with
+% hyperref
+%\makeatletter
+%\def\theHALC@line{\thealgorithm-\theALC@line}
+%\def\theHALC@rem{\thealgorithm-\theALC@rem-\theALC@line}
+%\makeatother 
+
+% \usetikzlibrary{shapes.multipart}
+\usetikzlibrary{positioning}
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows}
+\usetikzlibrary{decorations.pathmorphing,decorations.markings}
+\usetikzlibrary{shapes}
+\usetikzlibrary{patterns}
+
+\pgfdeclarepatternformonly{smobgpattern}{\pgfqpoint{-1pt}{-1pt}}{\pgfqpoint{8pt}{8pt}}{\pgfqpoint{7pt}{7pt}}
+{
+  \pgfsetlinewidth{0.2pt}
+  \pgfpathmoveto{\pgfqpoint{0pt}{0pt}}
+  \pgfpathlineto{\pgfqpoint{7.1pt}{7.1pt}}
+  \pgfusepath{stroke}
+}
+
+\tikzstyle{opendeco}=[decoration={zigzag,amplitude=0.1em,segment length=0.6em}]
+\tikzstyle{opendash}=[densely dotted,thick] 
+\tikzstyle{bgpattern}=[pattern=smobgpattern,pattern color=black!100] 
+\tikzstyle{node}=[circle,draw=black!100]
+\tikzstyle{key}=[circle,draw=black!100]
+\tikzstyle{lbl}=[font=\scriptsize,midway,sloped]
+\tikzstyle{i}=[very thick]
+\tikzstyle{page}=[rounded rectangle,draw=black!100,minimum width=2.3em,minimum height=2em]
+\tikzstyle{db}=[cylinder,draw=black!100,shape border rotate=90,shape aspect=.25]
+\tikzstyle{dbl}=[cylinder,draw=black!100,shape border rotate=90,shape aspect=.5]
+\tikzstyle{rnode}=[rounded rectangle,minimum width=4em,minimum height=3.5em,font=\tiny]
+\tikzstyle{parentlink}=[]
+\tikzstyle{dead}=[fill=black!10]
+
+\newcommand{\centerrows}[2]{\parbox[c]{#1}{\centering{}#2}}
+\newcommand{\raggedrows}[2]{\parbox[c]{#1}{#2}}
+
+% Tree page formatting
+\newlength{\treepagewidth}
+\setlength{\treepagewidth}{4.4em}
+\newlength{\treeindexpagewidth}
+\setlength{\treeindexpagewidth}{6.2em}
+\newlength{\treepageline}
+\setlength{\treepageline}{.8em}
+\newlength{\treepageheight}
+\setlength{\treepageheight}{3.5em}
+
+\tikzstyle{treepage}=[rounded rectangle open top,draw=black!100,
+font=\scriptsize,inner sep=3pt] 
+\tikzstyle{treepageheader}=[rectangle,font=\footnotesize,inner sep=0pt,minimum width=1.4em]
+
+\newcommand{\treepageheader}[2]{\node[treepageheader,above=-1pt of #1]
+(#1header) {#2};} 
+\newcommand{\treepagecontents}[3]{%
+\setlength{\treepageheight}{#1\treepageline}%
+\begin{minipage}[t][\treepageheight]{\treepagewidth}%
+\raggedright%
+#2\\
+\vspace{-0.5em}
+\rule{\treepagewidth}{0.5pt}
+\vspace{-1.2em}\\
+#3%
+\end{minipage}%
+}
+\newcommand{\treeindexpagecontents}[3]{%
+\setlength{\treepageheight}{#1\treepageline}%
+\begin{minipage}[t][\treepageheight]{\treeindexpagewidth}
+\raggedright%
+#2\\
+\vspace{-0.5em}
+\rule{\treeindexpagewidth}{0.5pt}
+\vspace{-1.2em}\\
+#3%
+\end{minipage}%
+}
+
+\newlength{\contentline}
+\setlength{\contentline}{1.2em}
+\newlength{\contentheight}
+\setlength{\contentheight}{3\contentline}
+\newcommand{\contentrows}[3]{%
+\setlength{\contentheight}{#1\contentline}%
+\begin{minipage}[t][\contentheight]{#2}%
+\raggedright%
+#3
+\end{minipage}%
+}
+
+
+% Load TikZ UML Actor definition
+\input{images/tikz-actor}
+% Load TikZ rounded rectangle
+\input{images/tikz-roundrect}
+\input{images/tikz-roundrect-opentop}
+
+\newlength{\txfigx}
+\newlength{\txfigy}
+\setlength{\txfigx}{2.3em}
+\setlength{\txfigy}{1.6em}
+%\newcommand{\txfigx}{2.3em}
+%\newcommand{\txfigy}{1em}
+
+\newlength{\tmvbtsmox}
+\setlength{\tmvbtsmox}{2em}
+\newlength{\tmvbtsmoy}
+\setlength{\tmvbtsmoy}{1.2em}
+
+\newlength{\visheight}
+\setlength{\visheight}{48mm}
+
+% Set comment for the algorithmic environment
+\renewcommand{\algorithmiccomment}[1]{{\small/\!/~\textit{#1}}}
+\algsetup{linenosize=\footnotesize}
+\algsetup{linenodelimiter=\ }
+
+% Add spacing to the footnote, after the footnote number
+%\renewcommand{\thefootnote}{\arabic{footnote}\hspace{1ex}}
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+% Package ulem changes the \emph to underline words by default. 
+% Don't want that.   
+\normalem 
+
+% Theorem environments
+% For theoremsymbol to work, the label must not be the last command in the
+% environment
+\setlength{\theorempreskipamount}{0pt}
+\setlength{\theorempostskipamount}{0pt}
+
+\newcommand{\thmskip}{\addvspace{\medskipamount}}
+
+% Settings for theorem environments (theorem, lemma, proof)
+\theoremstyle{plain}
+\theoremprework{}
+\theorempostwork{}
+\theoremheaderfont{\hspace{\parindent}\normalfont\sffamily\bfseries}
+\theoremindent0pt
+\theorembodyfont{\normalfont}
+\theoremseparator{.}
+
+\theoremprework{}
+\theorempostwork{}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{invariant}{Invariant}[chapter]
+
+% For theoremsymbol to work, the label must not be the last command in the
+% environment
+\theoremsymbol{{\scriptsize~$\Box$}}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[invariant]{Definition}
+
+\theoremstyle{nonumberplain}
+\theoremprework{}
+\theorempostwork{}
+% For theoremsymbol to work, the label must not be the last command in the
+% environment
+\theoremsymbol{\ensuremath{_\Box}}
+\theoremseparator{.}
+\theoremheaderfont{\hspace{\parindent}\normalfont\itshape}
+\theorembodyfont{\normalfont}
+\theoremindent0pt
+\newtheorem{proof}{Proof}
+
+
+
+%% Custom definitions
+%%---------------------------------------------------------------------
+
+\newcommand{\todo}[1]{{\tiny TODO:}~{\textit{#1}}}
+\newcommand*{\abbr}[1]{\texorpdfstring{\smash{\mbox{#1}}}{#1}}
+\newcommand*{\Om}[1]{\ensuremath{\Omega(#1)}}
+\newcommand*{\Oh}[1]{\ensuremath{\mathcal{O}(#1)}}
+\newcommand*{\OhT}[1]{\ensuremath{\mathit{\Theta}(#1)}}
+%\newcommand*{\code}[1]{{\textbf{#1}}}
+\newcommand*{\action}[1]{{\textbf{#1}}}
+\newcommand*{\alg}[1]{{\emph{#1}}}
+\newcommand*{\proc}[1]{\ensuremath{\textsc{\lowercase{#1}}}}
+\newcommand*{\ptr}{\ensuremath{\text{\tiny\raisebox{0.4ex}{$>$}}}}
+
+\newcommand*{\Btree}{\texorpdfstring{\smash{\mbox{B$^+$-tree}}}{B-tree}}
+\newcommand*{\Bpuu}{\texorpdfstring{\smash{\mbox{B$^+$-puu}}}{B-puu}}
+\newcommand*{\Blinktree}{\smash{\mbox{B$^{\rm link}$-tree}}}
+\newcommand*{\Rstartree}{\smash{\mbox{R$^*$-tree}}}
+\newcommand*{\LinkRef}{Link$_{\rm Ref}$}
+\newcommand*{\Rtree}{\mbox{R-tree}}
+\newcommand*{\TSBtree}{\mbox{TSB-tree}}
+\newcommand*{\TSBpuu}{\mbox{TSB-puu}}
+\newcommand*{\TreeLib}{\abbr{\textsc{TreeLib}}}
+\newcommand*{\actver}{\smash{\ensuremath{v_{\text{\textit{active}}}}}}
+\newcommand*{\actverp}{\ensuremath{v_{\text{\textit{active}}}}}
+\newcommand*{\movever}{\smash{\ensuremath{v_{\text{\textit{move}}}}}}
+\newcommand*{\stablever}{\smash{\ensuremath{v_{\text{\textit{stable}}}}}}
+\newcommand*{\comver}{\smash{\ensuremath{v_{\text{\textit{commit}}}}}}
+\newcommand*{\entries}[1]{\ensuremath{m_{#1}}}
+\newcommand*{\liveentries}[1]{\ensuremath{a_{#1}}}
+\newcommand*{\rootstar}{\smash{\ensuremath{\text{\textit{root}}^*}}}
+\newcommand*{\rootstarp}{\ensuremath{\text{\textit{root}}^*}}
+\newcommand*{\capacity}{\ensuremath{B}}
+\newcommand*{\pagesize}{\ensuremath{B_b}}
+\newcommand*{\txid}[1]{\ensuremath{\text{\textsf{id}}(#1)}}
+\newcommand*{\snapver}[1]{\ensuremath{\text{\textsf{snap}}(#1)}}
+\newcommand*{\commitver}[1]{\ensuremath{\text{\textsf{commit}}(#1)}}
+\newcommand*{\delstate}[1]{\emph{del-\num{#1}}}
+
+\newcommand*{\deletemark}{\ensuremath{\bot}}
+\newcommand*{\nullmark}{\ensuremath{\varnothing}}
+\newcommand*{\emptymark}{\ensuremath{\varnothing}}
+\newcommand*{\updatemark}{\ensuremath{\delta}}
+\newcommand*{\returnmark}{\ensuremath{\gamma}}
+\newcommand*{\returnset}{\ensuremath{\Gamma}}
+\newcommand*{\Nsym}{\ensuremath{\mathbb{N}}}
+\newcommand*{\Rsym}{\ensuremath{\mathbb{R}}}
+
+%\newcommand*{\children}[1]{\ensuremath{\text{\it children}(#1)}}
+%\newcommand*{\parent}[1]{\ensuremath{\text{\it parent}(#1)}}
+%\newcommand*{\height}[1]{\ensuremath{h(#1)}}
+\newcommand*{\kr}[1]{\ensuremath{\text{\textsf{kr}}(#1)}}
+\newcommand*{\vr}[1]{\ensuremath{\text{\textsf{vr}}(#1)}}
+\newcommand*{\kvr}[1]{\ensuremath{\text{\textsf{kvr}}(#1)}}
+%\newcommand*{\kvr}[1]{\ensuremath{\text{\it kvr}(#1)}}
+\newcommand*{\vrmark}[1]{\smash{\ensuremath{\vv{#1}}}}
+
+\newcommand*{\minsplit}{\ensuremath{\text{\textsf{min-split}}}}
+\newcommand*{\maxsplit}{\ensuremath{\text{\textsf{max-split}}}}
+\newcommand*{\minlive}{\ensuremath{\text{\textsf{min-live}}}}
+
+\newcommand*{\qtype}[1]{\mbox{\emph{#1}}}
+
+\newcommand*{\geqr}[1]{\geq\negthickspace{}#1}
+
+\newcommand*{\range}[2]{\mbox{\num{#1}--\num{#2}}}
+%\newcommand*{\logrecord}[1]{\ensuremath{\langle #1 \rangle}}
+\newcommand*{\logact}[1]{\ensuremath{\text{\textbf{#1}}}}
+\newcommand*{\lrb}[1]{\ensuremath{\langle #1}}
+\newcommand*{\lre}[1]{\ensuremath{#1 \rangle}}
+
+\newcommand*{\calign}[2]{\multicolumn{1}{#1}{#2}}
+
+
+% Just used to bypass spelling errors
+\newcommand*{\sic}[1]{#1}
+
+% Padding used in page figures (which are tables)
+\newlength{\padlen}
+\newcommand*{\pad}[1]{\setlength{\padlen}{3pt}\setlength{\padlen}{#1\padlen}\hspace{\padlen}}
+\newcommand*{\tpad}{\hspace{3pt}}
+
+% Headers used in tables (Table Header EMPHasis)
+\newcommand*{\themph}[1]{\textbf{#1}}
+
+%\newcommand{\fignote}[1]{\it\emph{#1}}
+\newcommand{\fignote}[1]{#1}
+\newcommand{\figcaption}[2]{\caption[#1]{#1. \fignote{#2}}}
+\newcommand*{\defpageref}[1]{\mbox{.\quad\emph{p.~\pageref{#1}}}}
+
+\newcommand*{\dbdate}[1]{{\isodate\printdate{#1}}}
+
+\newcommand*{\NP}{NP}
+
+\newcommand*{\secref}[1]{Section~\ref{#1}}
+\newcommand*{\chapref}[1]{Chapter~\ref{#1}}
+\newcommand*{\apxref}[1]{Appendix~\ref{#1}}
+\newcommand*{\defref}[1]{Definition~\ref{#1}}
+\newcommand*{\figref}[1]{Figure~\ref{#1}}
+\newcommand*{\invref}[1]{Invariant~\ref{#1}}
+\newcommand*{\thmref}[1]{Theorem~\ref{#1}}
+\newcommand*{\lemmaref}[1]{Lemma~\ref{#1}}
+\newcommand*{\corollaryref}[1]{Corollary~\ref{#1}}
+\newcommand*{\algref}[1]{Algorithm~\ref{#1}}
+\newcommand*{\tableref}[1]{Table~\ref{#1}}
+\newcommand*{\secpageref}[1]{\secref{#1}, p.~\pageref{#1}}
+
+
+\newlength{\testimagewidth}
+%\setlength{\testimagewidth}{0.72\textwidth}
+\setlength{\testimagewidth}{0.92\textwidth}
+
+\newcommand{\transcom}[1]{\ensuremath{C_{#1}}}
+\newcommand{\idcommap}[1]{\smash{\ensuremath{\hat{C}_{#1}}}}
+
+\newcommand*{\email}[1]{\href{mailto:#1}{#1}}
+% Bibliography style
+\bibliographystyle{abbrv}
+

@@ -1,0 +1,2450 @@
+% Tricks
+%--------------------------------------------
+@preamble{"\newcommand{\SortNoop}[1]{}"}
+% Use example:
+% author = {{\SortNoop{Bercken}}van den Bercken, Jochen}
+
+%% Leave a space between first names and last name, 
+%% i.e., "J. P. Doe", not "J.P.Doe". 
+
+
+% Names
+%--------------------------------------------
+@string{proc={Proceedings of the }}
+
+@string{journal:vldb={The VLDB Journal}}
+@string{journal:vldb-endow={Proceedings of the VLDB Endowment}}
+@string{journal:ieee-kde={IEEE Transactions on Knowledge and Data Engineering}}
+@string{journal:ieee-computer={IEEE Computer}}
+@string{journal:ibm-rnd={IBM Journal of Research and Development}}
+@string{journal:sigmod={ACM SIGMOD Record}}
+@string{journal:acm-tods={ACM Transactions on Database Systems}}
+@string{journal:acm-talg={ACM Transactions on Algorithms}}
+@string{journal:acta={Acta Informatica}}
+@string{journal:algo={Algorithmica}}
+@string{journal:acm-survey={ACM Computing Surveys}}
+@string{journal:acm-comm={Communications of the ACM}}
+@string{journal:jacm={Journal of the ACM}}
+@string{journal:info-science={Information Sciences}}
+@string{journal:info-system={Information Systems}}
+@string{journal:css={Journal of Computer and System Sciences}}
+@string{journal:ijasc={International Journal of Applied Science and Computations}}
+@string{journal:siam={SIAM Journal on Computing}}
+@string{journal:dke={Data and Knowledge Engineering}}
+
+@string{conf:vldb={International Conference on Very Large Data Bases}}
+@string{conf:ideas={International Database Engineering and Applications Symposium}}
+@string{conf:edbt={International Conference on Extending Database Technology}}
+@string{conf:sigmod={ACM SIGMOD International Conference on Management of Data}}
+@string{conf:sigcomm={ACM SIGCOMM Conference on Applications, Technologies, Architectures, and Protocols for Computer Communication}}
+@string{conf:cikm={ACM Conference on Information and Knowledge Management}}
+@string{conf:pikm={PhD Workshop on Information and Knowledge Management}}
+@string{conf:icde={International Conference on Data Engineering}}
+@string{conf:icdt={International Conference on Database Theory}}
+@string{conf:sea={International Symposium on Experimental Algorithms}}
+@string{conf:cidr={International Conference on Innovative Data Systems Research}}
+@string{conf:ssd={International Symposium on Advances in Spatial Databases}}
+@string{conf:spire={String Processing and Information Retrieval Symposium}}
+@string{conf:pods={ACM SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems}}
+@string{conf:pdc={ACM SIGACT-SIGOPS Symposium on Principles of Distributed Computing}}
+@string{conf:alenex={Workshop on Algorithm Engineering and Experiments}}
+@string{conf:chilean={International Conference of the Chilean Computer Science Society}}
+@string{conf:icalp={International Colloquium on Automata, Languages and Programming}}
+@string{conf:ride={International Workshop on Research Issues in Data Engineering}} 
+@string{conf:sede={International Conference on Software Engineering and Data Engineering}}
+@string{conf:dexa={International Conference on Database and Expert Systems Applications}}
+@string{conf:sirocco={International Colloquium on Structural Information and Communication Complexity}}
+@string{conf:ancs={ACM/IEEE Symposium on Architecture for Networking and Communications Systems}}
+@string{conf:raid={International Symposium on Recent Advances in Intrusion Detection}}
+@string{conf:dbpl={International Workshop on Database Programming Languages}}
+@string{conf:damon={International Workshop on Data Management On New Hardware}}
+@string{conf:icws={IEEE International Conference on Web Services}}
+@string{conf:ipps={International Parallel Processing Symposium}}
+@string{conf:pdis={International Conference on Parallel and Distributed Information Systems}}
+@string{conf:iwg={International Workshop on Groupware}}
+@string{conf:mascots={IEEE International Symposium on Modeling, Analysis and Simulation of Computers and Telecommunication Systems}}
+@string{conf:time={International Workshop on Temporal Representation and Reasoning}}
+
+
+
+% Articles 
+%--------------------------------------------
+
+@inproceedings{becker:1993:optimal,
+  author    = {Becker, B. and Gschwind, S. and Ohler, T. and Seeger, Bernhard and Widmayer, Peter},
+  title     = {On Optimal Multiversion Access Structures},
+  crossref  = {proc:ssd:1993},
+  pages     = {123--141}
+}
+
+% Multiversion B-tree (MVBT)
+@article{becker:1996:mvbt,
+  author    = {B. Becker and S. Gschwind and T. Ohler and Bernhard Seeger and Peter Widmayer},
+  title     = {{An asymptotically optimal multiversion B-tree}},
+  journal   = journal:vldb,
+  volume    = 5,
+  number    = 4,
+  year      = 1996,
+  pages     = {264--275}
+}
+
+@inproceedings{bercken:1996:multiversion,
+  author    = {{\SortNoop{Bercken}}van den Bercken, Jochen and Seeger, Bernhard},
+  title     = {Query processing techniques for multiversion access methods},
+  crossref  = {proc:vldb:1996},
+  pages     = {168--179}
+}
+
+
+% Enhancement of the MVBT
+@article{varman:1997:multiversion,
+  author    = {Varman, P. J. and Verma, R. M.},
+  title     = {An efficient multiversion access structure},
+  journal   = journal:ieee-kde,
+  volume    = {9},
+  number    = {3},
+  pages     = {391--409},
+  year      = {1997}
+}
+
+% Write-once B-tree (WOBT)
+@article{easton:1986:wobt,
+  author    = {Easton, M. C.},
+  title     = {Key-sequence data sets on indelible storage},
+  journal   = journal:ibm-rnd,
+  volume    = {30},
+  number    = {3},
+  year      = {1986},
+  pages     = {230--241}
+}
+
+% Time-split B-tree (TSB)
+@inproceedings{lomet:1989:tsb,
+  author    = {D. Lomet and B. Salzberg},
+  title     = {Access methods for multiversion data},
+  crossref  = {proc:sigmod:1989},
+  pages     = {315--324}
+}
+
+% Performance study of the TSB
+@inproceedings{lomet:1990:tsb-performance,
+  author    = {Lomet, D. and Salzberg, B.},
+  title     = {The performance of a multiversion access method},
+  crossref  = {proc:sigmod:1990},
+  pages     = {353--363}
+}
+
+@article{lomet:1992:conc-rec,
+  author    = {Lomet, D. and Salzberg, B.},
+  title     = {Access method concurrency with recovery},
+  journal   = journal:sigmod,
+  volume    = {21},
+  number    = {2},
+  pages     = {351--360},
+  year      = {1992},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{lomet:1997:concurrency,
+  author    = {Lomet, D. and Salzberg, B.},
+  title     = {Concurrency and recovery for index trees},
+  journal   = journal:vldb,
+  volume    = {6},
+  number    = {3},
+  pages     = {224--240},
+  year      = {1997},
+  publisher = {Springer}
+}
+
+% Published short 3-page article on Immortal DB
+@inproceedings{lomet:2005:immortaldb,
+  author    = {D. Lomet and R. Barga and M. F. Mokbel and G. Shegalov and
+               R. Wang and Y. Zhu},
+  title     = {Immortal {DB}: transaction time support for {SQL} server},
+  crossref  = {proc:sigmod:2005},
+  pages     = {939--941}
+}
+
+% Longer paper on Immortal DB
+@inproceedings{lomet:2006:transactiontime,
+  author    = {D. Lomet and R. Barga and M. F. Mokbel and G. Shegalov and
+               R. Wang and Y. Zhu},
+  title     = {Transaction time support inside a database engine},
+  crossref  = {proc:icde:2006},
+  pages     = {35},
+  year      = {2006}
+}
+
+% Transaction time in Immortal DB
+@article{lomet:2008:version-compression,
+  author    = {Lomet, D. and Hong, M. and Nehme, R. and Zhang, R.},
+  title     = {Transaction time indexing with version compression},
+  journal   = journal:vldb-endow,
+  volume    = {1},
+  number    = {1},
+  pages     = {870--881},
+  year      = {2008},
+  publisher = {VLDB Endowment}
+}
+
+% Improving Immortal DB
+@inproceedings{lomet:2009:improving,
+  author    = {Lomet, D. and Li, F.},
+  title     = {Improving transaction-time {DBMS} performance and functionality},
+  crossref  = {proc:icde:2009},
+  pages     = {581--591}
+}
+
+% Differential indexes
+@inproceedings{pollari-malmi:2000:differential-index,
+  author    = {Pollari-Malmi, Kerttu and Ruuth, Jarmo and Soisalon-Soininen, Eljas},
+  title     = {Concurrency control for {B-trees} with differential indices},
+  crossref  = {proc:ideas:2000},
+  pages     = {287--296}
+}
+
+% B-trees with concurrency
+@article{bayer:1977:btree-concurrency,
+  author    = {Rudolf Bayer and Schkolnick, M.},
+  title     = {Concurrency of operations on {B-trees}},
+  journal   = journal:acta,
+  volume    = {9},
+  number    = {1},
+  pages     = {1--21},
+  year      = {1977},
+  publisher = {Springer}
+}
+
+% B-tree article
+@article{bayer:1972:btree,
+  author    = {Rudolf Bayer and McCreight, E. M.},
+  title     = {Organization and maintenance of large ordered indexes},
+  journal   = journal:acta,
+  volume    = {1},
+  number    = {3},
+  pages     = {173--189},
+  year      = {1972},
+  publisher = {Springer}
+}
+
+% Cache coherency
+@inproceedings{graefe:2001:cache,
+  author    = {Graefe, G. and Larson, P-{\AA}.},
+  title     = {B-tree indexes and {CPU} caches},
+  crossref  = {proc:icde:2001},
+  pages     = {349--358}
+}
+
+% Perhaps first temporal article?
+@inproceedings{bubenko:1977:temporal,
+  author    = {Bubenko, J. A.},
+  title     = {The temporal dimension in information modelling},
+  booktitle = proc # {IFIP Working Conference on Modelling in Data Base Management Systems},
+  year      = {1977},
+  pages     = {93--118}
+}
+
+
+% B-link-tree article
+@Article{lehman:1981:b-link-tree,
+  author    = {Lehman, P. L. and Yao, B.},
+  title     = {Efficient locking for concurrent operations on {B-trees}},
+  journal   = journal:acm-tods,
+  year      = {1981},
+  volume    = {6},
+  number    = {4},
+  pages     = {650--670}
+}
+
+@article{graefe:2003:partitioned,
+  author    = {Graefe, G.},
+  title     = {Partitioned {B}-trees---a user's guide},
+  journal   = {Datenbanksysteme f{\"u}r Business, Technologie und Web, Tagungsband der 10. BTW-Konferenz},
+  pages     = {668--671},
+  year      = {2003},
+  organization={Citeseer}
+}
+
+% No pages for this entry (only on-line proceedings)
+@inproceedings{graefe:2003:sorting,
+  title     = {Sorting and indexing with partitioned {B}-Trees},
+  author    = {Graefe, G.},
+  booktitle = proc # {1st } # conf:cidr,
+  year      = {2003},
+  organization={Citeseer}
+}
+
+@article{pollari-malmi:1996:batch-updates,
+  author    = {Pollari-Malmi, Kerttu and Soisalon-Soininen, Eljas and Yl{\"o}nen, Tatu},
+  title     = {Concurrency control in {B-trees} with batch updates},
+  journal   = journal:ieee-kde,
+  volume    = {8},
+  number    = {6},
+  pages     = {975--984},
+  year      = {1996}
+}
+
+@inproceedings{pollari-malmi:2004:bulk-insert,
+  author    = {Pollari-Malmi, Kerttu and Soisalon-Soininen, Eljas},
+  title     = {Concurrency Control and {I/O}-Optimality in Bulk Insertion},
+  booktitle = proc # {11th } # conf:spire,
+  pages     = {161--170},
+  year      = {2004},
+  publisher = {Springer}
+}
+
+@phdthesis{pollari-malmi:2002:batch-updates,
+  author    = {Kerttu Pollari-Malmi},
+  title     = {Batch Updates and Concurrency Control in {B}-Trees},
+  school    = {Department of Computer Science and Engineering, Helsinki University of Technology, Espoo, Finland},
+  year      = {2002},
+  note      = {\url{http://lib.tkk.fi/Diss/2002/isbn9512258951/}. Referenced \printdate{18.1.2010}}
+}
+
+
+@inproceedings{lilja:2007:bulk-delete,
+  author    = {Timo Lilja and Riku Saikkonen and Seppo Sippu and
+               Eljas Soisalon-Soininen},
+  title     = {Online Bulk Deletion},
+  crossref  = {proc:icde:2007},
+  pages     = {956--965}
+}
+
+@inproceedings{saikkonen:2009:bulk-insert-sort,
+  title     = {Bulk-Insertion Sort: Towards Composite Measures of Presortedness},
+  author    = {Riku Saikkonen and Eljas Soisalon-Soininen},
+  booktitle = proc # {8th } # conf:sea,
+  pages     = {269--280},
+  year      = {2009},
+  organization = {Springer-Verlag}
+}
+
+@inproceedings{lilja:2005:balancing,
+  author    = {Timo Lilja},
+  title     = {The cost of balancing in top-down (a,b) trees},
+  booktitle = proc # {Conference on Algorithmic Information Theory},
+  year      = 2005,
+  pages     = {77--84},
+  organization = {University of Vaasa, Vaasa, Finland}
+}
+
+@inproceedings{soisalon-soininen:1999:full-text,
+  author    = {Soisalon-Soininen, Eljas and Widmayer, Peter},
+  title     = {Concurrency and recovery in full-text indexing},
+  booktitle = proc # {1999 } # conf:spire # { and } # conf:iwg,
+  pages     = {192--198},
+  year      = {1999}
+}
+
+@inproceedings{gartner:2001:bulk-delete,
+  title     = {Efficient bulk deletes in relational databases},
+  author    = {Gärtner, A. and Kemper, A. and Kossmann, D. and Zeller, B.},
+  crossref  = {proc:icde:2001},
+  pages     = {183--192}
+}
+
+@phdthesis{saikkonen:2009:bulk-updates,
+  author    = {Riku Saikkonen},
+  title     = {Bulk Updates and Cache Sensivity in Search Trees},
+  school    = {Department of Computer Science and Engineering, Helsinki University of Technology, Espoo, Finland},
+  year      = {2009},
+  note      = {\url{http://lib.tkk.fi/Diss/2009/isbn9789522480385/}. Referenced \printdate{13.1.2010}}
+}
+
+@phdthesis{stantic:2005:temporal,
+  author    = {Stantic, B.},
+  title     = {Access Methods for Temporal Databases},
+  year      = {2005},
+  school    = {Griffith University, Australia}
+}
+
+@inproceedings{shoshani:1986:temporal,
+  author    = {Shoshani, A. and Kawagoe, K.},
+  title     = {Temporal data management},
+  crossref  = {proc:vldb:1986},
+  pages     = {79--88}
+}
+
+@inproceedings{zhang:2001:temporal,
+  title     = {Efficient computation of temporal aggregates with range predicates},
+  author    = {Zhang, D. and Markowetz, A. and Tsotras, V. and Gunopulos, D. and Seeger, Bernhard},
+  crossref  = {proc:pods:2001},
+  pages     = {237--245},
+  year      = {2001}
+}
+
+@inproceedings{litwin:1980:linear,
+  author    = {Litwin, W.},
+  title     = {Linear hashing: A new tool for file and table addressing},
+  crossref  = {proc:vldb:1980},
+  pages     = {212--223}
+}
+
+@article{lum:1984:designing,
+  author    = {Lum, V. and Dadam, P. and Erbe, R. and Guenauer, J. and Pistor, P. and Walch, G. and Werner, H. and Woodfill, J.},
+  title     = {Designing {DBMS} support for the temporal dimension},
+  journal   = journal:sigmod,
+  volume    = {14},
+  number    = {2},
+  pages     = {115--130},
+  year      = {1984},
+  publisher = {ACM}
+}
+
+% Differential indexes (similar to)
+@inproceedings{mohan:1992:side-file,
+  author    = {Mohan, C. and Narang, I.},
+  title     = {Algorithms for creating indexes for very large tables without quiescing updates},
+  crossref  = {proc:sigmod:1992},
+  pages     = {361--370}
+}
+
+@unpublished{haapasalo:2010:performance,
+  author    = {Haapasalo, Tuukka},
+  title     = {Experimental Analysis of Transactional Multiversion Database Structures},
+  note      = {To be submitted for publication}
+}
+
+@inproceedings{haapasalo:2009:cmvbt,
+  author    = {Tuukka Haapasalo and Ibrahim Jaluta and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Concurrent Updating Transactions on Versioned Data},
+  crossref  = {proc:ideas:2009},
+  pages     = {77--87}  
+}
+
+@inproceedings{haapasalo:2009:tmvbt,
+  author    = {Tuukka Haapasalo and Ibrahim Jaluta and Bernhard Seeger and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Transactions on the multiversion {B$^+$}-tree},
+  crossref  = {proc:edbt:2009},
+  pages     = {1064--1075}
+}
+
+@inproceedings{haapasalo:2008:concurrency,
+  author    = {Tuukka Haapasalo and Ibrahim Jaluta and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Concurrency control and recovery for multiversion database structures},
+  booktitle = proc # {2nd } # conf:pikm,
+  year      = 2008,
+  pages     = {73--80} 
+}
+
+
+@article{jaluta:2005:blink,
+  author    = {Ibrahim Jaluta and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Concurrency control and recovery for balanced {B}-link trees},
+  journal   = journal:vldb,
+  volume    = {14},
+  number    = {2},
+  year      = {2005},
+  pages     = {257--277},
+}
+
+@article{jaluta:2003:recoverable,
+  author    = {Ibrahim Jaluta and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Recoverable {B$^+$}-trees in Centralized Database Management Systems},
+  journal   = journal:ijasc,
+  year      = {2003},
+  volume    = {10},
+  pages     = {160--181}
+}
+
+@phdthesis{jaluta:2002:client-server,
+  author    = {Ibrahim Jaluta},
+  title     = {B-tree concurrency control and recovery in a client-server database management system},
+  year      = {2002},
+  school    = {Department of Computer Science and Engineering, Helsinki University of Technology, Espoo, Finland},
+  note      = {\url{http://lib.hut.fi/Diss/2002/isbn9512257068}. Referenced \printdate{13.1.2010}}
+}
+
+@article{jaluta:2006:page-server,
+  author    = {Ibrahim Jaluta and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {B-tree concurrency control and recovery in page-server database systems},
+  journal   = journal:acm-tods,
+  year      = {2006},
+  volume    = 31,
+  number    = 1,
+  pages     = {82--132}
+}
+
+@inproceedings{sippu:2001:theory,
+  author    = {Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {A theory of transactions on recoverable search trees},
+  crossref  = {proc:icdt:2001},
+  pages     = {83--98}
+}
+
+@inproceedings{soisalon-soininen:2004:strings,
+  title     = {On classification of strings},
+  author    = {Eljas Soisalon-Soininen and Tatu Ylönen},
+  booktitle = proc # {11th } # conf:spire,
+  pages     = {321--330},
+  year      = {2004},
+  publisher = {Springer}
+}
+
+@article{brown:1980:sorted-lists,
+  title     = {Design and analysis of a data structure for representing sorted lists},
+  author    = {Brown, M. R. and Tarjan, R. E.},
+  journal   = journal:siam,
+  volume    = {9},
+  number    = {3},
+  pages     = {594--614},
+  year      = {1980}
+}
+
+@techreport{brown:1978:sorted-lists,
+  title     = {Design and analysis of a data structure for representing sorted lists},
+  author    = {Brown, M. R. and Tarjan, R. E.},
+  year      = {1978},
+  number    = {STAN-CS-78-709},
+  institution = {Stanford University, School of Humanities and Sciences, Computer Science Department}
+}
+
+@inproceedings{jensen:2001:timestamping,
+  author    = {Jensen, C. and Lomet, D.},
+  title     = {Transaction timestamping in (temporal) databases},
+  crossref  = {proc:vldb:2001},
+  pages     = {441--450}
+}
+
+@phdthesis{sullivan:2003:tuning,
+  author    = {Sullivan, D. G.},
+  title     = {Using Probabilistic Reasoning to Automate Software Tuning},
+  year      = {2003},
+  school    = {The Division of Engineering and Applied Sciences, Harvard University, Cambridge, Massachusetts}
+}
+
+@phdthesis{reed:1987:naming,
+  author    = {D. P. Reed},
+  title     = {Naming and synchronization in a decentralized computer system},
+  year      = {1987},
+  school    = {Massachusetts Institute of Technology, Cambridge, USA},
+  note      = {MIT-LCS-TR-205}
+}
+
+@article{kollios:2002:hashing,
+  author    = {G. Kollios and V. J. Tsotras},
+  title     = {Hashing methods for temporal data},
+  journal   = journal:ieee-kde,
+  volume    = {14},
+  number    = {4},
+  year      = {2002},
+  pages     = {902--919}
+}
+
+@article{kumar:1998:bitemporal,
+  title     = {Designing access methods for bitemporal databases},
+  author    = {Kumar, A. and Tsotras, V.J. and Faloutsos, C.},
+  journal   = journal:ieee-kde,
+  volume    = {10},
+  number    = {1},
+  pages     = {1},
+  year      = {1998}
+}
+
+@article{oneil:1999:lru-k,
+  author    = {O'Neil, E. J. and O'Neil, P. E. and Weikum, G.},
+  title     = {An optimality proof of the {LRU-K} page replacement algorithm},
+  journal   = journal:jacm,
+  volume    = {46},
+  number    = {1},
+  pages     = {92--112},
+  year      = {1999},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{lomet:1993:key-range,
+  author    = {Lomet, D. B.},
+  title     = {Key range locking strategies for improved concurrency},
+  crossref  = {proc:vldb:1993},
+  pages     = {655--664}
+}
+
+@article{lomet:1998:cs-recovery,
+  author    = {Lomet, D. and Weikum, G.},
+  title     = {Efficient transparent application recovery in client-server information systems},
+  journal   = journal:sigmod,
+  volume    = {27},
+  number    = {2},
+  pages     = {460--471},
+  year      = {1998},
+  publisher = {ACM}
+}
+
+@inproceedings{chang:2006:bigtable,
+  author    = {Chang, F. and Dean, J. and Ghemawat, S. and Hsieh, W. C. and Wallach, D. A. and Burrows, M. and Chandra, T. and Fikes, A. and Gruber, R. E.},
+  title     = {Bigtable: a distributed storage system for structured data},
+  booktitle = proc # {7th USENIX Symposium on Operating Systems Design and Implementation},
+  pages     = {205--218},
+  year      = {2006}
+}
+
+@inproceedings{silva:2000:bitemporal,
+  title     = {An incremental batch-oriented index for bitemporal databases},
+  author    = {Silva, J.R.O. and Nascimento, M.A.},
+  booktitle = proc # {7th } # conf:time,
+  pages     = {133--141},
+  year      = {2000}
+}
+
+@inproceedings{sun:2005:online-btree,
+  author    = {Sun, X. and Wang, R. and Salzberg, B. and Zou, C.},
+  title     = {Online {B}-tree merging},
+  crossref  = {proc:sigmod:2005},
+  pages     = {335--346},
+}
+
+% First red-black tree article
+@article{bayer:1972:red-black,
+  author    = {Rudolf Bayer},
+  title     = {Symmetric binary {B}-trees: Data structure and maintenance algorithms},
+  journal   = journal:acta,
+  volume    = {1},
+  number    = {4},
+  pages     = {290--306},
+  year      = {1972}
+}
+
+% Red-black tree article (new name from this article)
+@inproceedings{guibas:1978:red-black,
+  author    = {Guibas, L. J. and Sedgewick, R.},
+  title     = {A dichromatic framework for balanced trees},
+  booktitle = proc # {19th Annual Symposium on Foundations of Computer Science},
+  pages     = {8--21},
+  year      = {1978}
+}
+
+
+% ARIES
+@article{mohan:1992:aries,
+  author    = {C. Mohan and D. J. Haderle and B. G. Lindsay and H. Pirahesh
+               and P. M. Schwarz},
+  title     = {{ARIES}: a transaction recovery method supporting
+               fine-granularity locking and partial rollbacks using
+	           write-ahead logging},
+  journal   = journal:acm-tods,
+  volume    = {17},
+  number    = {1},
+  year      = {1992},
+  pages     = {94--162}
+}
+
+% ARIES/IM
+@inproceedings{mohan:1992:aries-im,
+  author    = {Mohan, C.},
+  title     = {{ARIES/IM}: an efficient and high concurrency index 
+                management method using write-ahead logging},
+  crossref  = {proc:sigmod:1992},
+  pages     = {371--380}
+}
+
+% ARIES/IM
+@inproceedings{mohan:1990:aries-kvl,
+  author    = {Mohan, C.},
+  title     = {{ARIES/KVL}: a key-value locking method for concurrency control
+                of multiaction transactions operating on {B}-tree indexes}, 
+  crossref  = {proc:vldb:1990},
+  pages     = {392--405}
+}
+
+@incollection{mohan:1996:ariescc,
+  author    = {C. Mohan},
+  title     = {Concurrency Control and Recovery Methods for {B$^+$}-Tree Indexes: {ARIES/KVL} and {ARIES/IM}},
+  booktitle = {Performance of Concurrency Control Mechanisms in Centralized Database Systems},
+  year      = {1996},
+  pages     = {248--306},
+  publisher = {Prentice-Hall, Inc. Upper Saddle River, NJ, USA},
+  editor    = {Vijay Kumar}
+}
+
+@inproceedings{mohan:1999:aries-history,
+  title     = {Repeating history beyond {ARIES}},
+  author    = {Mohan, C.},
+  crossref  = {proc:vldb:1999},
+  pages     = {1--17}
+}
+
+@inproceedings{mohan:2002:delete-update,
+  author    = {Mohan, C.},
+  title     = {An efficient method for performing record deletions and updates using index scans},
+  crossref  = {proc:vldb:2002},
+  pages     = {940--949}
+}
+
+@inproceedings{salzberg:2004:framework,
+  author    = {B. Salzberg and L. Jiang and D. Lomet and M. Barrena and
+               J. Shan and E. Kanoulas},
+  title     = {A framework for access methods for versioned data},
+  crossref  = {proc:edbt:2004},
+  pages     = {730--747}
+}
+
+% Language for querying multiversion databases, navigating through database versions, etc.
+@inproceedings{abdessalem:1997:vql,
+  author    = {Abdessalem, T. and Jomier, G.},
+  title     = {{VQL}: a query language for multiversion databases},
+  booktitle = proc # {6th } # conf:dbpl,
+  pages     = {160--179},
+  year      = {1997},
+  publisher = {Springer}
+}
+
+@inproceedings{sanzo:2008:performance,
+  title     = {A performance model of multi-version concurrency control},
+  author    = {{\SortNoop{Sanzo}}di Sanzo, P. and Ciciani, B. and Quaglia, F. and Romano, P.},
+  booktitle = proc # {16th } # conf:mascots,
+  pages     = {1--10},
+  year      = {2008}
+}
+
+% Storing intervals into a B-tree-like structure.
+@article{ang:1995:ibt,
+  author    = {Ang, C. H. and Tan, K. P.},
+  title     = {The interval {B}-tree},
+  journal   = {Information Processing Letters},
+  volume    = {53},
+  number    = {2},
+  pages     = {85--89},
+  year      = {1995},
+  publisher = {Elsevier}
+}
+
+% 
+@article{aggarwal1988input,
+  author    = {Aggarwal, A. and Jeffrey, S. V.},
+  title     = {The input/output complexity of sorting and related problems},
+  journal   = journal:acm-comm,
+  year      = {1988},
+  volume    = {31},
+  number    = {9},
+  pages     = {1116--1127},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{jermaine:2007:pe-file,
+  author    = {Jermaine, C. and Omiecinski, E. and Yee, W. G.},
+  title     = {The partitioned exponential file for database storage management},
+  journal   = journal:vldb,
+  volume    = {16},
+  number    = {4},
+  pages     = {417--437},
+  year      = {2007},
+  publisher = {Springer}
+}
+
+% An indexing method that combines hash tables and B-trees.
+@article{arumugam:2006:multiversion,
+  author    = {Arumugam, G. and Thangaraj, M.},
+  title     = {An efficient multiversion access control in a temporal object oriented database},
+  journal   = {Journal of Object Technology},
+  year      = 2006,
+  volume    = 5,
+  number    = 1,
+  pages     = {105--116}
+}
+
+% Representing now-time (current, end-point somewhere in future) in databases. 
+% Nothing really multiversion related.
+@article{clifford:1997:now-semantics,
+  author    = {Clifford, J. and Dyreson, C. and Isakowitz, T. and Jensen, C. S. and Snodgrass, R. T.},
+  title     = {On the semantics of {``now''} in databases},
+  journal   = journal:acm-tods,
+  volume    = {22},
+  number    = {2},
+  pages     = {171--214},
+  year      = {1997}
+}
+
+% Method for ordering transaction timings so that there are fewer conflicts and less waiting
+% Dynamic Versioning, DV 
+@inproceedings{gukal:1995:transient-versioning,
+  author    = {Gukal, S. and Omiecinski, E. and Ramachandran, U.},
+  title     = {An efficient transient versioning method},
+  booktitle = proc # {13th British National Conference on Databases},
+  pages     = {155--171},
+  year      = {1995},
+  publisher = {Springer}
+}
+
+% Original R-tree article
+@inproceedings{guttman:1984:rtree,
+  author    = {Guttman, A.},
+  title     = {R-trees: a dynamic index structure for spatial searching},
+  crossref  = {proc:sigmod:1984},
+  pages     = {47--57}
+}
+
+% Better splits for R-trees in the R*-tree
+@inproceedings{beckmann:1990:rtree,
+  author    = {Beckmann, N. and Kriegel, H. P. and Schneider, R. and Seeger, Bernhard},
+  title     = {The \mbox{{R*}-tree}: an efficient and robust access method for points and rectangles},
+  crossref  = {proc:sigmod:1990},
+  pages     = {322--331}
+}
+
+% Revised R*-tree
+@inproceedings{beckmann:2009:rstar,
+  title     = {A revised {R*}-tree in comparison with related index structures},
+  author    = {Beckmann, N. and Seeger, Bernhard},
+  crossref  = {proc:sigmod:2009},
+  pages     = {799--812}
+}
+
+% Indexing moving objects
+@inproceedings{hadjieleftheriou:2002:spatiotemporal,
+  author    = {Hadjieleftheriou, M. and Kollios, G. and Tsotras, V. J. and Gunopulos, D.},
+  title     = {Efficient indexing of spatiotemporal objects},
+  crossref  = {proc:edbt:2002},
+  pages     = {251--268}
+}
+
+@article{hadjieleftheriou:2006:indexing,
+  author    = {Hadjieleftheriou, M. and Kollios, G. and Tsotras, V. J. and Gunopulos, D.},
+  title     = {Indexing spatiotemporal archives},
+  journal   = journal:vldb,
+  volume    = {15},
+  number    = {2},
+  pages     = {143--164},
+  year      = {2006},
+  publisher = {Springer}
+}
+
+% Overview of temporal data management, nothing much relating to temporal
+% index implementation. 
+@article{jensen:1999:temporal,
+  author    = {Jensen, C. S. and Snodgrass, R. T.},
+  title     = {Temporal data management},
+  journal   = journal:ieee-kde,
+  volume    = {11},
+  number    = {1},
+  pages     = {36--44},
+  year      = {1999}
+}
+
+@article{snodgrass:1986:temporal,
+  author    = {Snodgrass, R. T. and Ahn, I.},
+  title     = {Temporal databases},
+  journal   = journal:ieee-computer,
+  volume    = {19},
+  number    = {9},
+  pages     = {35--42},
+  year      = {1986},
+  publisher = {Springer}
+}
+
+@article{gao:2006:join,
+  author    = {D. Gao and C. S. Jensen and R. T. Snodgrass and M. D. Soo},
+  title     = {Join operations in temporal databases},
+  journal   = journal:vldb,
+  volume    = {14},
+  number    = {1},
+  pages     = {2--29},
+  year      = {2005},
+  publisher = {Springer Berlin / Heidelberg}
+}
+
+% A comparison of three multiversion indexes, none of which are optimal.
+@inproceedings{jouini:2007:multiversion,
+  author    = {Jouini, K. and Jomier, G.},
+  title     = {Indexing multiversion databases},
+  crossref  = {proc:cikm:2007},
+  pages     = {915--918}
+}
+
+% Describes how the page structure should be laid out in memory to avoid L2 cache misses
+@inproceedings{jouini:2008:temporal-redundancy,
+  author    = {Jouini, K. and Jomier, G.},
+  title     = {Avoiding version redundancy for high performance reads in temporal databases},
+  booktitle = proc # {4th } # conf:damon,
+  pages     = {41--46},
+  year      = {2008},
+}
+
+% Same as above, cache sensitivity etc.
+@inproceedings{jouini:2008:temporal-layouts,
+  author    = {Jouini, K. and Jomier, G. and Kabore, P.},
+  title     = {Read-Optimized, Cache-Conscious, Page Layouts for Temporal Relational Data},
+  booktitle = proc # {19th } # conf:dexa,
+  pages     = {581--595},
+  year      = {2008}
+}
+
+% MAP21: Time intervals mapped to points which are then indexed using B-trees
+@article{nascimento:1999:valid-time,
+  author    = {Nascimento, M. A. and Dunham, M. H.},
+  title     = {Indexing Valid Time Databases via {B$^+$}-Trees},
+  journal   = journal:ieee-kde, 
+  pages     = {929--947},
+  year      = {1999}
+}
+
+% Time-index
+@inproceedings{elmasri:1990:time-index,
+  author    = {Elmasri, R. and Wuu, G. T. J. and Kim, Y. J.},
+  title     = {The time index: an access structure for temporal data},
+  crossref  = {proc:vldb:1990},
+  pages     = {1--12}
+}
+
+% Implementation issues for the time index
+@inproceedings{elmasri:1991:time-index,
+  author    = {Elmasri, R. and Kim, Y. J. and Wuu, G. T. J.},
+  title     = {Efficient implementation techniques for the time index},
+  crossref  = {proc:icde:1991},
+  pages     = {102--111}
+}
+
+% Improves the Time Index, which is a temporal index
+@inproceedings{kouramajian:1994:time-index,
+  author    = {Kouramajian, V. and Kamel, I. and Elmasri, R. and Waheed, S.},
+  title     = {The time index$^{+}$: an incremental access structure for temporal databases},
+  crossref  = {proc:cikm:1994},
+  pages     = {296--303}
+}
+
+% Defines the multiversion isolation type, snapshot isolation 
+@inproceedings{berenson:1995:sql-critique,
+  author    = {Berenson, H. and Bernstein, P. and Gray, Jim and Melton, J. and O'Neil, E. and O'Neil, P.},
+  title     = {A critique of {ANSI SQL} isolation levels},
+  crossref  = {proc:sigmod:1995},
+  pages     = {1--10}
+}
+
+% Making snapshot isolation serializable
+@article{fekete:2005:snapshot-isolation,
+  author    = {Fekete, A. and Liarokapis, D. and O'Neil, E. and O'Neil, P. and Shasha, D.},
+  title     = {Making snapshot isolation serializable},
+  journal   = journal:acm-tods,
+  volume    = {30},
+  number    = {2},
+  pages     = {492--528},
+  year      = {2005},
+  publisher = {ACM Press New York, NY, USA}
+}
+
+% Performance of serializable SI
+@inproceedings{alomari:2008:si-cost,
+  author    = {Alomari, M. and Cahill, M. and Fekete, A. and Rohm, U.},
+  title     = {The cost of serializability on platforms that use snapshot isolation},
+  crossref  = {proc:icde:2008},
+  pages     = {576--585}
+}
+
+% Serializable SI by detecting constraint failures
+@inproceedings{cahill:2008:snapshot,
+  author    = {Cahill, M. J. and Röhm, U. and Fekete, A. D.},
+  title     = {Serializable isolation for snapshot databases},
+  crossref  = {proc:2008:sigmod},
+  pages     = {729--738}
+}
+
+% Partitions time-duration -space into triangular shapes
+@inproceedings{shen:1994:tp-index,
+  author    = {Shen, H. and Ooi, B. C. and Lu, H.},
+  title     = {The {TP-Index}: a dynamic and efficient indexing mechanism for temporal databases},
+  crossref  = {proc:icde:1994},
+  pages     = {274--281}
+}
+
+% I think the lazy timestamping is introduced here
+@article{torp:2000:timestamping,
+  author    = {Torp, K. and Jensen, C. S. and Snodgrass, R. T.},
+  title     = {Effective timestamping in databases},
+  journal   = journal:vldb,
+  volume    = {8},
+  number    = {3--4},
+  pages     = {267--288},
+  year      = {2000},
+  publisher = {Springer-Verlag New York, Inc. Secaucus, NJ, USA}
+}
+
+% An index using hashing and accessor blocks etc.
+@article{tsotras:1995:snapshot-index,
+  author    = {Tsotras, V. J. and Kangelaris, N.},
+  title     = {The snapshot index: an {I/O}-optimal access method for timeslice queries},
+  journal   = journal:info-system,
+  volume    = {20},
+  number    = {3},
+  pages     = {237--260},
+  year      = {1995},
+  publisher = {Elsevier}
+}
+
+@article{tsotras:1998:notation,
+  author    = {Tsotras, V. J. and Jensen, C. S. and Snodgrass, R. T.},
+  title     = {An extensible notation for spatiotemporal index queries},
+  journal   = journal:sigmod,
+  volume    = {27},
+  number    = {1},
+  pages     = {47--53},
+  year      = {1998},
+  publisher = {ACM}
+}
+
+% B-tree
+@article{comer:1979:btree,
+  author    = {Comer, D.},
+  title     = {Ubiquitous {B}-tree},
+  journal   = journal:acm-survey,
+  volume    = {11},
+  number    = {2},
+  pages     = {121--137},
+  year      = {1979},
+  publisher = {ACM Press New York, NY, USA}
+}
+
+@article{bayer:1997:ub-btree,
+  author    = {Rudolf Bayer},
+  title     = {The universal {B}-tree for multidimensional indexing: general concepts},
+  journal   = {World-Wide Computing and Its Applications},
+  volume    = {97},
+  pages     = {198--209},
+  year      = {1997},
+  publisher = {Springer}
+}
+
+@techreport{bayer:1998:ub-tree-performance,
+  author    = {Rudolf Bayer and Markl, V.},
+  title     = {The {UB}-tree: performance of multidimensional range queries},
+  institution = {Technische Universität München, Informatik, München},
+  number    = {TUM-I9814},
+  year      = {1998},
+  pages     = {1--14}
+}
+
+@article{agrawal:1989:multiversion,
+  author    = {Agrawal, D. and Sengupta, S.},
+  title     = {Modular synchronization in multiversion databases: Version control and concurrency control},
+  journal   = journal:sigmod,
+  volume    = {18},
+  number    = {2},
+  pages     = {408--417},
+  year      = {1989},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{agrawal:1993:distributed-multiversion,
+  author    = {Agrawal, D. and Sengupta, S.},
+  title     = {Modular synchronization in distributed, multiversion databases: Version control and concurrency control},
+  journal   = journal:ieee-kde,
+  volume    = {5},
+  number    = {1},
+  pages     = {126--137},
+  year      = {1993}
+}
+
+@article{bernstein:1981:distributed,
+  author    = {Bernstein, P. A. and Goodman, N.},
+  title     = {Concurrency control in distributed database systems},
+  journal   = journal:acm-survey,
+  volume    = {13},
+  number    = {2},
+  pages     = {185--221},
+  year      = {1981},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{bernstein:1982:concurrency,
+  author    = {Bernstein, P. A. and Goodman, N.},
+  title     = {Concurrency control algorithms for multiversion database systems},
+  booktitle = proc # {1st } # conf:pdc,
+  pages     = {209--215},
+  year      = {1982},
+  organization = {ACM New York, NY, USA}
+}
+
+@article{bernstein:1983:multiversion,
+  author    = {Bernstein, P. A. and Goodman, N.},
+  title     = {Multiversion concurrency control---theory and algorithms},
+  journal   = journal:acm-tods,
+  volume    = {8},
+  number    = {4},
+  year      = {1983},
+  pages     = {465--483}
+}
+
+@inproceedings{binder:2007:multiversion,
+  author    = {Binder, W. and Spycher, S. and Constantinescu, I. and Faltings, B.},
+  title     = {Multiversion concurrency control for multidimensional 
+               index structures},
+  booktitle = proc # {18th } # conf:dexa,
+  pages     = {172--181},
+  year      = {2007}
+}
+
+@inproceedings{binder:2007:evaluation,
+  author    = {Binder, W. and Spycher, S. and Constantinescu, I. and Faltings, B.},
+  title     = {An evaluation of multiversion concurrency control for web service directories},
+  booktitle = proc # {2007 } # conf:icws,
+  pages     = {35--42},
+  year      = {2007}
+}
+
+@inproceedings{bober:1994:multiversion,
+  author    = {Bober, P. and Carey, M.},
+  title     = {Indexing alternatives for multiversion locking},
+  crossref  = {proc:edbt:1994},
+  pages     = {145--158}
+}
+
+% GiST
+@inproceedings{hellerstein:1995:gist,
+  author    = {Hellerstein, J. M. and Naughton, J. F. and Pfeffer, A.},
+  title     = {Generalized search trees for database systems},
+  crossref  = {proc:vldb:1995},
+  pages     = {562--573}
+}
+
+% Based on R-trees
+@inproceedings{stonebraker:1987:postgres,
+  author    = {Stonebraker, Michael},
+  title     = {The design of the {POSTGRES} storage system},
+  crossref  = {proc:vldb:1987},
+  pages     = {289--300}
+}
+
+@inproceedings{kolovson:1989:historical,
+  author    = {Kolovson, C. and Stonebraker, Michael},
+  title     = {Indexing techniques for historical databases},
+  crossref  = {proc:icde:1989},
+  pages     = {127--137}
+}
+
+@article{kolovson:1991:segment-index,
+  author    = {Kolovson, C. P. and Stonebraker, Michael},
+  title     = {Segment indexes: dynamic indexing techniques for multi-dimensional interval data},
+  journal   = journal:sigmod,
+  volume    = {20},
+  number    = {2},
+  pages     = {138--147},
+  year      = {1991},
+  publisher = {ACM Press New York, NY, USA}
+}
+
+
+% R-tree CC'n'R
+% Not available
+@inproceedings{ng:1993:concurrent-rtree,
+  author    = {Ng, V. and Kameda, T.},
+  title     = {Concurrent accesses to {R}-trees},
+  crossref  = {proc:ssd:1993},
+  pages     = {142--161}
+}
+
+@inproceedings{kornacker:1995:concurrent-rtree,
+  author    = {Kornacker, M. and Banks, D.},
+  title     = {High-concurrency locking in {R}-trees},
+  crossref  = {proc:vldb:1995},
+  pages     = {134--145}
+}
+
+% Concurrency control and recovery for GiST
+@article{kornacker:1997:concurrent-gist,
+  author    = {Kornacker, M. and Mohan, C. and Hellerstein, J. M.},
+  title     = {Concurrency and recovery in generalized search trees},
+  journal   = journal:sigmod,
+  volume    = {26},
+  number    = {2},
+  pages     = {62--72},
+  year      = {1997},
+  publisher = {ACM Press New York, NY, USA}
+}
+
+@article{song:2004:concurrency-multidim,
+  author    = {Song, S. I. and Kim, Y. H. and Yoo, J. S.},
+  title     = {An enhanced concurrency control scheme for multidimensional index structures},
+  journal   = journal:ieee-kde,
+  pages     = {97--111},
+  year      = {2004},
+  publisher = {IEEE Computer Society}
+}
+
+@inproceedings{kanth:1998:concurrency-multidim,
+  author    = {Kanth, K. V. R. and Serena, D. and Singh, A. K.},
+  title     = {Improved concurrency control techniques for multi-dimensional index structures},
+  booktitle = proc # {12th } # conf:ipps,
+  pages     = {580--586},
+  year      = {1998}
+}
+
+@article{chen:1997:concurrent-rtree,
+  author    = {Chen, J. K. and Huang, Y. F. and Chin, Y. H.},
+  title     = {A study of concurrent operations on {R}-trees},
+  journal   = journal:info-science,
+  volume    = {98},
+  number    = {1},
+  pages     = {263--300},
+  year      = {1997},
+  publisher = {Elsevier}
+}
+
+% Talks about uncertain valid-time (e.g., the event happened between 14-16 today)
+@article{dyreson:1998:valid-time,
+  author    = {Dyreson, C. E. and Snodgrass, R. T.},
+  title     = {Supporting valid-time indeterminacy},
+  journal   = journal:acm-tods,
+  volume    = {23},
+  number    = {1},
+  pages     = {1--57},
+  year      = {1998},
+  publisher = {ACM New York, NY, USA}
+}
+
+% Not available 
+@incollection{elmasri:1993:monotonic-btree,
+  author    = {Elmasri, R. and Wuu, G. T. J. and Kouramajian, V.},
+  title     = {The time index and the monotonic {B$^+$}-tree},
+  chapter   = {18},
+  crossref  = {tansel:1993:temporal-db}
+}
+
+% Not available
+% Contains: 
+% - KOLOVSON, C. 1993. Indexing techniques for historical databases.
+@book{tansel:1993:temporal-db,
+  author    = {Tansel, A. U. and Clifford, J. and Gadia, S. and Jajodia, S. and Segev, A. and Snodgrass, R. T.},
+  title     = {Temporal Databases: Theory, Design, and Implementation},
+  booktitle = {Temporal Databases: Theory, Design, and Implementation},
+  year      = {1993},
+  publisher = {Benjamin-Cummings Publishing Co., Inc. Redwood City, CA, USA}
+}
+
+@book{bernstein:1987:cc-n-r,
+  author    = {P. A. Bernstein and V. Hadzilacos and N. Goodman},
+  title     = {Concurrency Control and Recovery in Database Systems},
+  booktitle = {Concurrency Control and Recovery in Database Systems},
+  publisher = {Addison-Wesley},
+  year      = {1987},
+  isbn      = {0-201-10715-5},
+  bibsource = {DBLP, \url{http://dblp.uni-trier.de}}
+}
+
+@book{gray:1993:transactionprocessing,
+  author    = {Gray, Jim and Reuter, A.},
+  title     = {Transaction Processing: Concepts and Techniques},
+  booktitle = {Transaction Processing: Concepts and Techniques},
+  year      = {1993},
+  publisher = {Morgan Kaufmann}
+}
+
+@book{papadimitriou:1986:cc-theory,
+  author    = {C. Papadimitriou},
+  title     = {The Theory of Database Concurrency Control},
+  booktitle = {The Theory of Database Concurrency Control},
+  year      = {1986},
+  publisher = {Computer Science Press}
+}
+
+@inproceedings{srivastava:1988:large-db,
+  author    = {Srivastava, J. and Ramamoorthy, CV},
+  title     = {Efficient algorithms for maintenance of large database indexes},
+  crossref  = {proc:icde:1988},
+  pages     = {402--408}
+}
+
+@inproceedings{srinivasan:1992:online,
+  author    = {Srinivasan, V. and Carey, M. J.},
+  title     = {Performance of on-line index construction algorithms},
+  crossref  = {proc:edbt:1992},
+  pages     = {293--309}  
+}
+
+@article{cardenas:1975:inverted,
+  author    = {C{\'a}rdenas, A. F.},
+  title     = {Analysis and performance of inverted data base structures},
+  journal   = journal:acm-comm,
+  volume    = {18},
+  number    = {5},
+  pages     = {253--263},
+  year      = {1975},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{faloutsos:1992:textdb,
+  author    = {Faloutsos, C. and Jagadish, H. V.},
+  title     = {Hybrid index organizations for text databases},
+  crossref  = {proc:edbt:1992},
+  pages     = {310--327}
+}
+
+% Long-running transactions, 2PL, survey
+@article{barghouti:1991:concurrency,
+  author    = {Barghouti, N. S. and Kaiser, G. E.},
+  title     = {Concurrency control in advanced database applications},
+  journal   = journal:acm-survey,
+  volume    = {23},
+  number    = {3},
+  pages     = {269--317},
+  year      = {1991},
+  publisher = {ACM New York, NY, USA}
+}
+
+% Isolation levels redefined
+@inproceedings{adya:2000:isolation,
+  author    = {Adya, A. and Liskov, B. and O'Neil, P.},
+  title     = {Generalized isolation level definitions},
+  crossref  = {proc:icde:2000},
+  pages     = {67--80}
+}
+
+% Extended R-tree that supports growing stair-shaped regions as well as rectangles
+% for bitemporal (transactional time + valid time) data
+@inproceedings{bliujuete:1998:rtreeindexing,
+  author    = {Bliujuete, R. and Jensen, C. S. and Saltenis, S. and Slivinskas, G.},
+  title     = {R-tree based indexing of now-relative bitemporal data},
+  crossref  = {proc:vldb:1998},
+  pages     = {345--356},
+  organization = {Institute of Electrical \& Electronics Engineers}
+}
+
+% Select temporary timestamp, change it to commit-timestamp when its known.
+% For distributed databases.
+@inproceedings{salzberg:1994:timestamping,
+  author    = {Salzberg, B.},
+  title     = {Timestamping after commit},
+  booktitle = proc # {3rd } # conf:pdis,
+  pages     = {160--167},
+  year      = {1994}
+}
+
+% Branched history
+@techreport{salzberg:1995:branched,
+  author    = {Salzberg, B. and Lomet, D.},
+  title     = {Branched and Temporal Index Structures},
+  year      = 2005,
+  number    = {NU-CCC-95-17},
+  pages     = {1--29},
+  institution = {Northeastern University, Boston, MA}
+}
+
+@techreport{overmars:1981:search-past-i,
+  author    = {Overmars, M. H.},
+  title     = {Searching in the past {I}},
+  year      = 1981,
+  number    = {RUU-CS-81-7},
+  pages     = {1--17},
+  institution = {University of Utrecht, Utrecht, The Netherlands}
+}
+
+@techreport{overmars:1981:search-past-ii,
+  author    = {Overmars, M. H.},
+  title     = {Searching in the past {II}: general transforms},
+  year      = 1981,
+  number    = {RUU-CS-81-9},
+  pages     = {1--31},
+  institution = {University of Utrecht, Utrecht, The Netherlands}
+}
+
+% Branched history
+@article{landau:1995:historical,
+  author    = {Landau, G. M. and Schmidt, J. P. and Tsotras, V. J.},
+  title     = {Historical queries along multiple lines of time evolution},
+  journal   = journal:vldb,
+  volume    = {4},
+  number    = {4},
+  pages     = {703--726},
+  year      = {1995}, 
+  publisher = {Springer}
+}
+
+@inproceedings{lanka:1991:persistent,
+  author    = {Lanka, S. and Mays, E.},
+  title     = {Fully persistent {B}$^+$-trees},
+  crossref  = {proc:sigmod:1991},
+  pages     = {426--435}
+}
+
+@article{tzouramanis:1999:overlapping,
+  author    = {Tzouramanis, T. and Manolopoulos, Y. and Lorentzos, N.},
+  title     = {Overlapping {B$^+$}-trees: an implementation of a transaction time access method},
+  journal   = journal:dke,
+  volume    = {29},
+  number    = {3},
+  pages     = {381--404},
+  year      = {1999}
+}
+
+@article{tao:2002:cost-mv,
+  author    = {Tao, Y. and Papadias, D. and Zhang, J.},
+  title     = {Cost models for overlapping and multiversion structures},
+  journal   = journal:acm-tods,
+  volume    = {27},
+  number    = {3},
+  pages     = {299--342},
+  year      = {2002},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{tao:2002:cost-bt,
+  author    = {Tao, Y. and Papadias, D. and Zhang, J.},
+  title     = {Cost models for overlapping and multi-version {B}-trees},
+  crossref  = {proc:icde:2002},
+  pages     = {191--200}
+}
+
+
+@inproceedings{hellerstein:1997:analysis,
+  author    = {Hellerstein, J. M. and Koutsoupias, E. and Papadimitriou, C. H.},
+  title     = {On the analysis of indexing schemes},
+  crossref  = {proc:pods:1997},
+  pages     = {249--256}
+}
+
+
+% Combination of Interval B-tree (for historical data) and a Modified B-tree
+% (for current data)
+@article{bozkaya:1998:transaction-time,
+  author    = {Bozkaya, T. and Ozsoyoglu, M.},
+  title     = {Indexing transaction time databases},
+  journal   = journal:info-science,
+  volume    = {112},
+  number    = {1--4},
+  pages     = {85--123},
+  year      = {1998},
+  publisher = {Elsevier Science Inc. New York, NY, USA}
+}
+
+@inproceedings{dietzfelbinger:1988:hashing,
+  author    = {Dietzfelbinger, M. and Karlin, A. and Mehlhorn, K. and Meyer auf der Heide, F. and Rohnert, H. and Tarjan, R. E.},
+  title     = {Dynamic perfect hashing: upper and lower bounds},
+  booktitle = proc # {29th Annual Symposium on Foundations of Computer Science},
+  pages     = {524--531},
+  year      = {1988}
+  
+}
+
+@inproceedings{driscoll:1986:persistent,
+  author    = {Driscoll, J. R. and Sarnak, N. and Sleator, D. D. and Tarjan, R. E.},
+  title     = {Making data structures persistent},
+  booktitle = proc # {18th Annual ACM Symposium on Theory of Computing},
+  pages     = {109--121},
+  year      = {1986},
+  organization = {ACM New York, NY, USA}
+}
+
+@article{driscoll:1989:persistent,
+  author    = {Driscoll, J. R. and Sarnak, N. and Sleator, D. D. and Tarjan, R. E.},
+  title     = {Making data structures persistent},
+  journal   = journal:css,
+  volume    = {38},
+  pages     = {86--124},
+  year      = {1989},
+  number    = {1}
+}
+
+@article{kanellakis:1996:indexing,
+  author    = {Kanellakis, P. and Ramaswamy, S. and Vengroff, DE},
+  title     = {Indexing for Data Models with Constraints and Classes},
+  journal   = journal:css,
+  volume    = {52},
+  number    = {3},
+  pages     = {589--612},
+  year      = {1996},
+  publisher = {Academic Press}
+}
+
+@article{lang:1986:differential,
+  author    = {Lang, S. D. and Driscoll, J. R. and Jou, J. H.},
+  title     = {Batch insertion for tree structured file 
+               organizations---improving differential database representation},
+  journal   = journal:info-system,
+  volume    = {11},
+  number    = {2},
+  pages     = {167--175},
+  year      = {1986}
+}
+
+@inproceedings{ailamaki:1999:dbms,
+  author    = {Ailamaki, A. and DeWitt, D. J. and Hill, M. D. and Wood, D. A.},
+  title     = {{DBMS}s on a modern processor: {W}here does time go?},
+  crossref  = {proc:vldb:1999},
+  pages     = {266--277}
+}
+
+@inproceedings{agarwal:2001:bulk-load,
+  author    = {Agarwal, P. K. and Arge, L. and Procopiuc, O. and Vitter, J. S.},
+  title     = {A framework for index bulk loading and dynamization},
+  booktitle = proc # {28th } # conf:icalp,
+  year      = {2001},
+  pages     = {115--127}
+}
+
+@inproceedings{raz:1993:mv-cc,
+  author    = {Raz, Y.},
+  title     = {Commitment ordering based distributed concurrency control for bridging single and multiple version resources},
+  booktitle = proc # {3rd } # conf:ride,
+  pages     = {189--199},
+  year      = {1993}
+}
+
+
+
+% Topic:
+% Spatial, multidimensional databases
+%--------------------------------------------
+
+@article{shekhar:1999:research-needs,
+  author    = {Shekhar, S. and Chawla, S. and Ravada, S. and Fetterer, A. and Liu, X. and Lu, C.},
+  title     = {Spatial databases---accomplishments and research needs},
+  journal   = journal:ieee-kde,
+  volume    = {11},
+  number    = {1},
+  pages     = {45--55},
+  year      = {1999},
+  publisher = {Citeseer}
+}
+
+% STR packing algorithm for R-trees
+@inproceedings{leutenegger:1997:str,
+  author    = {Leutenegger, S. T. and Lopez, M. A. and Edgington, J.},
+  title     = {{STR}: a simple and efficient algorithm for {R-tree} packing},
+  crossref  = {proc:icde:1997},  
+  pages     = {497--506}
+}
+
+@article{sarnak:1986:persistent,
+  author    = {Sarnak, N. and Tarjan, R. E.},
+  title     = {Planar point location using persistent search trees},
+  journal   = journal:acm-comm,
+  volume    = {29},
+  number    = {7},
+  year      = {1986},
+  pages     = {669--679},
+  publisher = {ACM New York, NY, USA}
+}
+
+% Entries ordered based on the order of their center points on a Hilbert curve.
+% MBRs also stored in internal nodes
+@inproceedings{kamel:1994:hilbert-rtree,
+  author    = {Kamel, I. and Faloutsos, C.},
+  title     = {Hilbert {R}-tree: An improved {R}-tree using fractals},
+  crossref  = {proc:vldb:1994},
+  pages     = {500--509}
+}
+
+% New linear split for R-trees
+@inproceedings{ang:1997:linear-split,
+  author    = {Ang, C. H. and Tan, T. C.},
+  title     = {New linear node splitting algorithm for {R}-trees},
+  crossref  = {proc:ssd:1997},
+  pages     = {339--349}
+}
+
+@inproceedings{ramsak:2000:integrating,
+  author    = {Ramsak, F. and Markl, V. and Fenk, R. and Zirkel, M. and Elhardt, K. and Rudolf Bayer},
+  title     = {Integrating the {UB}-Tree into a Database System Kernel},
+  crossref  = {proc:vldb:2000},
+  pages     = {263--272}
+}
+
+% kd-tree
+@article{bentley:1975:kd-tree,
+  author    = {Bentley, J. L.},
+  title     = {Multidimensional binary search trees used for associative searching},
+  journal   = journal:acm-comm,
+  volume    = {18},
+  number    = {9},
+  pages     = {509--517},
+  year      = {1975},
+  publisher = {ACM}
+}
+
+@inproceedings{robinson:1981:kdb,
+  author    = {Robinson, J. T.},
+  title     = {The {K-D-B}-tree: a search structure for large multidimensional dynamic indexes},
+  crossref  = {proc:sigmod:1981},
+  pages     = {10--18}
+}
+
+@article{chakrabarti:1999:concurrency,
+  author    = {Chakrabarti, K. and Mehrotra, S.},
+  title     = {Efficient concurrency control in multidimensional access methods},
+  journal   = journal:sigmod,
+  volume    = {28},
+  number    = {2},
+  pages     = {25--36},
+  year      = {1999},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{chakrabarti:1998:dynamic-locking,
+  author    = {Chakrabarti, K. and Mehrotra, S.},
+  title     = {Dynamic granular locking approach to phantom protection in {R}-trees},
+  crossref  = {proc:icde:1998},
+  pages     = {446--455}
+}
+
+@inproceedings{ciferri:2003:performance,
+  author    = {Ciferri, RR and Salgado, AC and Nascimento, MA and Magalhaes, GC},
+  title     = {A Performance Comparison among the Traditional {R}-trees, the {H}ilbert {R}-tree and the {SR}-tree},
+  booktitle = proc # {23rd } # conf:chilean,
+  pages     = {3--12},
+  year      = {2003}
+}
+
+@inproceedings{haverkort:2009:4d-hilbert,
+  author    = {Haverkort, H. and van Walderveen, F.},
+  title     = {Four-dimensional {H}ilbert curves for {R}-trees},
+  booktitle = proc # {11th } # conf:alenex,
+  pages     = {63--73},
+  year      = {2009}
+}
+
+@article{arge:2009:cache-rtree,
+  author    = {Arge, L. and de Berg, M. and Haverkort, H.},
+  title     = {Cache-oblivious {R}-trees},
+  journal   = journal:algo,
+  volume    = {53},
+  number    = {1},
+  pages     = {50--68},
+  year      = {2009},
+  publisher = {Springer}
+}
+
+@article{song:2009:frequent-update-rtree,
+  author    = {Song, M. B. and Kitagawa, H.},
+  title     = {Managing Frequent Updates in {R}-Trees for Update-Intensive Applications},
+  journal   = journal:ieee-kde,
+  year      = {2009},
+  pages     = {1573--1589},
+  publisher = {IEEE Computer Society}
+}
+
+@article{silva:2009:rum-tree,
+  author    = {Silva, Y. N. and Xiong, X. and Aref, W. G.},
+  title     = {The {RUM}-tree: supporting frequent updates in {R}-trees using memos},
+  journal   = journal:vldb,
+  volume    = {18},
+  number    = {3},
+  pages     = {719--738},
+  year      = {2009},
+  publisher = {Springer}
+}
+
+@article{arge:2008:priority,
+  author    = {Arge, L. and Berg, M. D. and Haverkort, H. and Yi, K.},
+  title     = {The priority {R}-tree: A practically efficient and worst-case optimal {R}-tree},
+  journal   = journal:acm-talg,
+  volume    = {4},
+  number    = {1},
+  pages     = {1--30},
+  year      = {2008},
+  publisher = {ACM}
+}
+
+@inproceedings{ravada:1999:oracle8i,
+  author    = {Siva Ravada and Jayant Sharma},
+  title     = {Oracle8i Spatial: Experiences with Extensible Databases},
+  crossref  = {proc:ssd:1999},
+  pages     = {355--359}
+}
+
+@inproceedings{ravikanth:2002:gis-comparison,
+  author    = {Kothuri Venkata {Ravi Kanth} and Siva Ravada and Daniel Abugov},
+  title     = {Quadtree and {R}-tree Indexes in {Oracle Spatial}: a
+               Comparison using {GIS} data},
+  crossref  = {proc:sigmod:2002},
+  pages     = {546--557}
+}
+
+@article{gaede:1998:multidimensional,
+  author    = {Gaede, V. and G{\\"u}nther, O.},
+  title     = {Multidimensional access methods},
+  journal   = journal:acm-survey,
+  volume    = {30},
+  number    = {2},
+  pages     = {170--231},
+  year      = {1998},
+  publisher = {ACM}
+}
+
+@inproceedings{shao:2004:clotho,
+  title     = {Clotho: Decoupling memory page layout from storage organization},
+  author    = {Shao, M. and Schindler, J. and Schlosser, S. W. and Ailamaki, A. and Ganger, G. R.},
+  crossref  = {proc:vldb:2004},
+  pages     = {696--707}
+}
+
+
+
+
+% Topic:
+% General
+%--------------------------------------------
+
+@article{aho:1975:string-match,
+  author    = {Alfred V. Aho and Margaret J. Corasick},
+  title     = {Efficient String Matching: An Aid to Bibliographic Search},
+  journal   = journal:acm-comm,
+  volume    = {18},
+  number    = {6},
+  year      = {1975},
+  pages     = {333--340}
+}
+
+@inproceedings{schlude:2002:distributed,
+  author    = {Schlude, K. and Soisalon-Soininen, Eljas and Widmayer, Peter},
+  title     = {Distributed highly available search trees},
+  booktitle = proc # {9th } # conf:sirocco,
+  pages     = {259--274},
+  year      = {2002},
+  organization = {Citeseer}
+}
+
+
+
+
+% Topic:
+% Moving object databases
+%--------------------------------------------
+
+% B^x-tree
+@inproceedings{jensen:2004:bxtree,
+  author    = {Jensen, C. S. and Lin, D. and Ooi, B. C.},
+  title     = {Query and update efficient {B$^+$}-tree based indexing of moving objects},
+  crossref  = {proc:vldb:2004},
+  pages     = {768--779},
+  organization = {VLDB Endowment}
+}
+
+@article{yiu:2008:bdualtree,
+  title     = {The {\emph{B}$^dual$-Tree}: indexing moving objects by space filling curves in the dual space},
+  author    = {Yiu, M. L. and Tao, Y. and Mamoulis, N.},
+  journal   = journal:vldb,
+  volume    = {17},
+  number    = {3},
+  pages     = {379--400},
+  year      = {2008},
+  publisher = {Springer}
+}
+
+
+
+% Topic:
+% Filtering
+%--------------------------------------------
+
+@inproceedings{kwon:2005:fist,
+  author    = {Kwon, J. and Rao, P. and Moon, B. and Lee, S.},
+  title     = {{FiST}: scalable {XML} document filtering by sequencing twig patterns},
+  crossref  = {proc:vldb:2005},
+  pages     = {217--228}
+}
+
+@inproceedings{gupta:2003:stream,
+  title     = {Stream processing of {XPath} queries with predicates},
+  author    = {Gupta, A. K. and Suciu, D.},
+  crossref  = {proc:sigmod:2003},
+  pages     = {419--430}
+}
+
+@inproceedings{dharmapurikar:2005:pattern-match,
+  author    = {Dharmapurikar, S. and Lockwood, J.},
+  title     = {Fast and scalable pattern matching for content filtering},
+  booktitle = proc # {2005 } # conf:ancs,
+  pages     = {183--192},
+  year      = {2005}
+}
+
+@inproceedings{vasiliadis:2009:regular,
+  author    = {Vasiliadis, G. and Polychronakis, M. and Antonatos, S. and Markatos, E. P. and Ioannidis, S.},
+  title     = {Regular Expression Matching on Graphics Hardware for Intrusion Detection},
+  booktitle = proc # {12th } # conf:raid,
+  pages     = {265--283},
+  year      = {2009},
+  organization = {Springer}
+}
+
+@inproceedings{altinel:2000:xml-filtering,
+  author    = {Mehmet Altinel and Michael J. Franklin},
+  title     = {Efficient Filtering of {XML} Documents for Selective
+               Dissemination of Information},
+  crossref  = {proc:vldb:2000},
+  pages     = {53--64}
+}
+
+@article{diao:2003:path-sharing,
+  author    = {Yanlei Diao and Mehmet Altinel and Michael J. Franklin and
+               Hao Zhang and Peter M. Fischer},
+  title     = {Path Sharing and Predicate Evaluation for High-performance {XML} Filtering},
+  journal   = journal:acm-tods,
+  volume    = {28},
+  number    = {4},
+  year      = {2003},
+  pages     = {467--516}
+}
+
+@article{green:2004:xml-process,
+  author    = {Todd J. Green and Ashish Gupta and Gerome Miklau and
+               Makoto Onizuka and Dan Suciu},
+  title     = {Processing {XML} Streams with Deterministic Automata and Stream Indexes},
+  journal   = journal:acm-tods,
+  volume    = {29},
+  number    = {4},
+  year      = {2004},
+  pages     = {752--788}
+}
+
+@misc{cs:2006:yfilter,
+  key       = {YFilter},
+  title     = {Filtering and transformation for high-volume {XML} message brokering},
+  year      = {2006},
+  howpublished = {Department of Computer Science, University of Massachusetts, Amherst},
+  note      = {\url{http://yfilter.cs.umass.edu/}. Referenced \printdate{20.1.2010}}
+}
+
+@article{silvasti:2008:xml-filter,
+  author    = {Panu Silvasti and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {{XML}-Document-Filtering Automaton},
+  journal   = journal:vldb-endow,
+  volume    = {1},
+  number    = {2},
+  year      = {2008},
+  pages     = {1666--1671}
+}
+
+@inproceedings{silvasti:2009:schema-conscious,
+  author    = {Panu Silvasti and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Schema-Conscious Filtering of {XML} Documents},
+  crossref  = {proc:edbt:2009}, 
+  pages     = {970--981}
+}
+
+@inproceedings{silvasti:2009:xpath-filters,
+  author    = {Panu Silvasti and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Processing Schema-Optimized {XPath} Filters by
+               Deterministic Automata},
+  booktitle = proc # {18th } # conf:sede,
+  year      = {2009},
+  pages     = {55--60}
+}
+
+@unpublished{silvasti:2009:linear-xpath,
+  author    = {Panu Silvasti and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Evaluating Linear {XPath} Expressions by Pattern-Matching
+              Automata},
+  year      = {2009},
+  note      = {Submitted for publication in a journal}
+}
+
+@unpublished{silvasti:2009:dictionary-matching,
+  author    = {Panu Silvasti and Seppo Sippu and Eljas Soisalon-Soininen},
+  title     = {Online Dictionary Matching with Variable-Length Gaps},
+  year      = {2009},
+  note      = {Submitted to a conference}
+}
+
+@techreport{fisk:2002:string-match,
+  author    = {Fisk, M. and Varghese, G.},
+  title     = {An analysis of fast string matching applied to content-based forwarding and intrusion detection},
+  number    = {CS2001-0670 (updated version)},
+  year      = 2002,
+  institution = {University of California, San Diego}
+}
+
+@inproceedings{lakshman:1998:packet-forward,
+  author    = {Lakshman, T. V. and Stiliadis, D.},
+  title     = {High-speed policy-based packet forwarding using efficient multi-dimensional range matching},
+  booktitle = proc # {1998 } # conf:sigcomm,
+  pages     = {203--214},
+  year      = {1998},
+  organization = {ACM New York, NY, USA}
+}
+
+
+
+
+% Topic:
+% Surveys
+%--------------------------------------------
+
+% A general survey on temporal concepts and query languages etc.
+@article{ozsoyoglu:1995:survey,
+  author    = {Özsoyo{\v g}lu, G. and Snodgrass, R. T.},
+  title     = {Temporal and real-time databases: a survey},
+  journal   = journal:ieee-kde,
+  volume    = {7},
+  number    = {4},
+  pages     = {513--532},
+  year      = {1995}
+}
+
+% Comparison of different indexing methods for temporal data
+% 64 pages
+@article{salzberg:1999:comparison,
+  author    = {Salzberg, B. and Tsotras, V. J.},
+  title     = {Comparison of access methods for time-evolving data},
+  journal   = journal:acm-survey,
+  volume    = {31},
+  number    = {2},
+  pages     = {158--221},
+  year      = {1999}
+}
+
+
+
+% Topic:
+% Glossaries
+%--------------------------------------------
+
+% Glossary of temporal database terms and concepts
+@article{dyreson:1994:glossary,
+  author    = {Curtis Dyreson and Fabio Grandi and Wolfgang K{\"a}fer and
+               Nick Kline and Nikos Lorentzos and Yannis Mitsopoulos and 
+               Angelo Montanari and Daniel Nonen and Elisa Peressi and 
+               Barbara Pernici and John F. Roddick and Nandlal L. Sarda and
+               Maria Rita Scalas and Arie Segev and Richard T. Snodgrass and
+               Mike D. Soo and Abdullah Tansel and Paolo Tiberio and Gio Wiederhold}, 
+  title     = {A consensus glossary of temporal database concepts},
+  journal   = journal:sigmod,
+  volume    = {23},
+  number    = {1},
+  pages     = {52--64},
+  year      = {1994},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{bohlen:1998:consensus,
+  author    = {Michael Böhlen and James Clifford and Ramez Elmasri and 
+               Shashi K. Gadia and Fabio Grandi and Pat Hayes and Sushil Jajodia  
+               and Wolfgang Käfer and Nick Kline and Nikos Lorentzos and
+               Yannis Mitsopoulos and Angelo Montanari and Daniel Nonen and 
+               Elisa Peressi and Barbara Pernici and John F. Roddick and 
+               Nandlal L. Sarda and Maria Rita Scalas and Arie Segev and 
+               Richard T. Snodgrass and Mike D. Soo and Abdullah Tansel and 
+               Paolo Tiberio and Gio Wiederhold},
+  title     = {The consensus glossary of temporal database concepts: {F}ebruary 1998 version},
+  journal   = {Temporal Databases: Research and Practice},
+  pages     = {367--405},
+  publisher = {Springer},
+  year      = {1998}
+}
+
+@inproceedings{snodgrass:1985:taxonomy,
+  author    = {Snodgrass, R. T. and Ahn, I.},
+  title     = {A taxonomy of time in databases},
+  crossref  = {proc:sigmod:1985},
+  pages     = {236--246}
+}
+
+
+
+% Topic:
+% Standards
+%--------------------------------------------
+@misc{ansi:1992:sql,
+  author = {{American National Standard for Information Systems}},
+  title = {Database \mbox{Language---{SQL}}},
+  note = {ANSI X3.\ 135-1992},
+  year = {1992}
+}
+
+
+
+% Topic:
+% What to study
+%--------------------------------------------
+
+@article{agrawal:2009:claremont,
+  author    = {Agrawal, R. and Ailamaki, A. and Bernstein, P. A. and Brewer, E. A. 
+               and Carey, M. J. and Chaudhuri, S. and Doan, A. and Florescu, D. 
+               and Franklin, M. J. and Garcia-Molina, H. and Gehrke, J. 
+               and L. Gruenwald and L. M. Haas and A. Y. Halevy and J. M. Hellerstein
+               and Y. E. Ioannidis and H. F. Korth and D. Kossmann and S. Madden 
+               and R. Magoulas and B. C. Ooi and T. O'Reilly and R. Ramakhrisnan
+               and S. Sarawagi and Michael Stonebraker and A. S. Szalay and G. Weikum},
+  title     = {The {C}laremont report on database research},
+  journal   = journal:acm-comm,
+  year      = {2009},
+  volume    = {52},
+  number    = {6},
+  pages     = {56--65},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{abiteboul:2005:assessment,
+  author    = {Serge Abiteboul and Rakesh Agrawal and Phil Bernstein and Mike Carey and
+               Stefano Ceri and Bruce Croft and David DeWitt and Mike Franklin and
+               Hector Garcia Molina and Dieter Gawlick and 
+               Jim Gray and Laura Haas and Alon Halevy and Joe Hellerstein and Yannis Ioannidis and
+               Martin Kersten and Michael Pazzani and Mike Lesk and David Maier and 
+               Jeff Naughton and Hans Schek and Timos Sellis and Avi Silberschatz and
+               Michael Stonebraker and Richard T. Snodgrass and Jeff Ullman and Gerhard Weikum 
+               and Jennifer Widom and Stan Zdonik},
+  title     = {The {L}owell database research self-assessment},
+  year      = {2005},
+  journal   = journal:acm-comm,
+  volume    = {48},
+  number    = {5},
+  pages     = {111--118},
+  publisher = {ACM New York}
+}
+
+@article{roddick:2004:spatial,
+  author    = {Roddick, J. F. and Hoel, E. and Egenhofer, M. J. and Papadias, D. and Salzberg, B.},
+  title     = {Spatial, temporal and spatio-temporal databases-hot issues and directions for {PhD} research},
+  journal   = journal:sigmod,
+  volume    = {33},
+  number    = {2},
+  pages     = {126--131},
+  year      = {2004},
+  publisher = {ACM}
+}
+
+@article{florescu:2009:rethinking,
+  author    = {Florescu, D. and Kossmann, D.},
+  title     = {Rethinking cost and performance of database systems},
+  journal   = journal:sigmod,
+  volume    = {38},
+  number    = {1},
+  pages     = {43--48},
+  year      = {2009},
+  publisher = {ACM}
+}
+
+
+
+% Topic:
+% Bibliographies 
+%--------------------------------------------
+
+@article{tsotras:1996:temporal,
+  author    = {Tsotras, V. J. and Kumar, A.},
+  title     = {Temporal database bibliography update},
+  journal   = journal:sigmod,
+  volume    = {25},
+  number    = {1},
+  pages     = {41--51},
+  year      = {1996}
+}
+
+@article{kline:1993:temporal,
+  author    = {Kline, N.},
+  title     = {An update of the temporal database bibliography},
+  journal   = journal:sigmod,
+  volume    = {22},
+  number    = {4},
+  pages     = {66--80},
+  year      = {1993}
+}
+
+
+
+% Topic:
+% Misc
+%--------------------------------------------
+
+@misc{oracle:2009:specs,
+  author    = {Oracle},
+  title     = {{Oracle Database Concepts 11\textit{g} Release 1 (11.1)}},
+  note      = {\url{http://download.oracle.com/docs/cd/B28359\_01/server.111/b28318/toc.htm}. Referenced \printdate{24.4.2009}},
+  year      = {2008}
+}
+
+@misc{postgresql:2009:postgresql,
+  author    = {{PostgreSQL Global Development Group}},
+  title     = {Postgre{SQL} 8.4.2 Documentation},
+  note      = {\url{http://www.postgresql.org/docs/8.4/}. Referenced \printdate{4.2.2010}},
+  year      = {2010}
+}
+
+@misc{fendt:2009:dvcs,
+  author    = {Robert Fendt},
+  title     = {{DVCS} Round-Up: One System to Rule Them All? {P}art~3},
+  howpublished = {The Linux Foundation, \url{http://ldn.linuxfoundation.org/article/dvcs-round-one-system-rule-them-all-part-3}},
+  note      = {Referenced \printdate{10.2.2010}},
+  year      = {2009}
+}
+
+@misc{suciu:2006:xml-repository,
+  author    = {Dan Suciu},
+  title     = {{XML} Data Repository},
+  howpublished = {The Database Research Group, University of Washington, \url{http://www.cs.washington.edu/research/xmldatasets/}},
+  year      = {2006},
+  note      = {Referenced \printdate{12.1.2010}},
+}
+
+@misc{git:2010:user-manual,
+  author    = {{Git community}},
+  title     = {Git User's Manual},
+  year      = 2010,
+  howpublished = {\url{http://www.kernel.org/pub/software/scm/git/docs/user-manual.html}},
+  note      = {Referenced \printdate{10.2.2010}}
+}	
+
+@misc{git:2010:git,
+  author    = {Junio C Hamano and Shawn O. Pearce and Linus Torvalds and 
+               Johannes Schindelin and Eric Wong and Jakub Narebski and Jeff King and Nicolas Pitre 
+               and others},
+  title     = {Git - the fast version control system},
+  howpublished = {\url{http://git-scm.com/}},
+  note      = {Referenced \printdate{21.10.2009}},
+  year      = {2009}
+}
+
+@misc{virtanen:2009:git,
+  author    = {Tommi Virtanen},
+  title     = {Git for Computer Scientists},
+  howpublished = {\url{http://eagain.net/articles/git-for-computer-scientists/}},
+  note      = {Referenced \printdate{21.10.2009}},
+  year      = {2009}
+}
+
+@misc{cederqvist:2008:cvs,
+  author    = {Per Cederqvist and others}, 
+  title     = {Version Management with {CVS}},
+  year      = 2008,
+  howpublished = {\url{http://ximbiot.com/cvs/manual/}},
+  note      = {Referenced \printdate{10.2.2010}}
+}
+
+@book{collins-sussman:2008:version,
+  title     = {Version Control with {S}ubversion},
+  author    = {Collins-Sussman, B. and Pilato, C. M. and Fitzpatrick, B. W.},
+  year      = {2008},
+  publisher = {O'Reilly Media, Inc.},
+  note      = {\url{http://svnbook.red-bean.com/}. Referenced \printdate{10.2.2010}}
+}
+
+
+
+% Check perhaps?
+% Using the Lock Manager to Choose Timestamps
+% SQL Server: Inside Microsoft SQL Server 2005: The Storage Engine
+% Indexing Valid Time Databases via B+-Trees
+
+
+% Multiversion 
+% GUNADHI,H. AND SEGEV, A. 1993. Efficient indexing methods for temporal relations
+% HELLERSTEIN, J. M., KOUTSOUPIAS, E., AND PAPADIMITRIOU, C. H. 1997. On the analysis of indexing schemes.
+% JENSEN, C. S.,MARK, L., AND ROUSSOPOULOS,N. 1991. Incremental implementation model for relational databases with transaction time
+% JENSEN, C. S.,MARK, L., ROUSSOPOULOS, N., AND SELLIS, T. 1992. Using differential techniques to efficiently support transaction time
+% KUMAR, A., TSOTRAS,V. J., AND FALOUTSOS,C. 1995. Access methods for bitemporal databases.
+% KUMAR, A., TSOTRAS,V. J., AND FALOUTSOS,C. 1998. Designing access methods for bitemporal databases.
+% LOMET, D. 1993. Using timestamping to optimize commit.
+% LOMET,D. AND SALZBERG, B. 1993. Transaction-time databases. 
+% LOMET,D. AND SALZBERG, B. 1993. Exploiting a history database for backup.
+% MANOLOPOULOS,Y. AND KAPETANAKIS, G. 1990. Overlapping B-trees for temporal data.
+% NASCIMENTO, M., DUNHAM,M. H., AND ELMASRI,R. 1996. M-IVTT: A practical index for bitemporal databases.
+% O'NEIL,P. AND WEIKUM, G. 1993. A log-structured history data access method (LHAM).
+% RAMASWAMY, S. 1997. Efficient indexing for constraint and temporal databases.
+% ROTEM,D. AND SEGEV, A. 1987. Physical organization of temporal data.
+% SHOSHANI,A. AND KAWAGOE, K. 1986. Temporal data management.
+% SNODGRASS,R. T. AND AHN, I. 1986. Temporal databases.
+% TSOTRAS,V. J. AND GOPINATH, B. 1990. Efficient algorithms for managing the history of evolving databases. 
+% TSOTRAS,V. J.,GOPINATH, B., AND HART,G. W. 1995. Efficient management of time-evolving databases.
+% VAN DEN BERCKEN, J., SEEGER, B., AND WIDMAYER, P. 1997. A generic approach to bulk loading multidimensional index structures.
+
+% Multidimension
+% NASCIMENTO, M., DUNHAM,M. H., AND KOURAMAJIAN, V. 1996. A multiple tree mapping-based approach for range indexing
+% LOMET,D. AND SALZBERG, B. 1990. The hB-tree: a multiattribute indexing method with good guaranteed performance.
+% KAMEL,I. AND FALOUTSOS, C. 1994. Hilbert R-tree: An improved R-tree using fractals.
+% ROBINSON, J. 1984. The K-D-B tree: A search structure for large multidimensional dynamic indexes.
+
+
+
+% Conference proceedings
+%--------------------------------------------
+
+
+% PODS
+@proceedings{proc:pods:1997,
+  title     = proc # {16th } # conf:pods,
+  booktitle = proc # {16th } # conf:pods,
+  year      = {1997}
+}
+@proceedings{proc:pods:2001,
+  title     = proc # {20th } # conf:pods,
+  booktitle = proc # {20th } # conf:pods,
+  year      = {2001}
+}
+
+
+% EDBT
+@proceedings{proc:edbt:1992,
+  title     = proc # {3rd } # conf:edbt,
+  booktitle = proc # {3rd } # conf:edbt,
+  year      = {1992}
+}
+@proceedings{proc:edbt:1994,
+  title     = proc # {4th } # conf:edbt,
+  booktitle = proc # {4th } # conf:edbt,
+  year      = {1994}
+}
+@proceedings{proc:edbt:2002,
+  title     = proc # {8th } # conf:edbt,
+  booktitle = proc # {8th } # conf:edbt,
+  year      = {2002}
+}
+@proceedings{proc:edbt:2004,
+  title     = proc # {9th } # conf:edbt,
+  booktitle = proc # {9th } # conf:edbt,
+  year      = {2004}
+}
+@proceedings{proc:edbt:2009,
+  title     = proc # {12th } # conf:edbt,
+  booktitle = proc # {12th } # conf:edbt,
+  year      = {2009}
+}
+
+% IDEAS
+@proceedings{proc:ideas:2000,
+  title     = proc # {2000 } # conf:ideas,
+  booktitle = proc # {2000 } # conf:ideas,
+  year      = {2000}
+}
+@proceedings{proc:ideas:2009,
+  title     = proc # {2009 } # conf:ideas,
+  booktitle = proc # {2009 } # conf:ideas,
+  year      = {2009}
+}
+
+% VLDB
+@proceedings{proc:vldb:1980,
+  title     = proc # {6th } # conf:vldb,
+  booktitle = proc # {6th } # conf:vldb,
+  year      = {1980}
+}
+@proceedings{proc:vldb:1986,
+  title     = proc # {12th } # conf:vldb,
+  booktitle = proc # {12th } # conf:vldb,
+  year      = {1986}
+}
+@proceedings{proc:vldb:1987,
+  title     = proc # {13th } # conf:vldb,
+  booktitle = proc # {13th } # conf:vldb,
+  year      = {1987}
+}
+@proceedings{proc:vldb:1990,
+  title     = proc # {16th } # conf:vldb,
+  booktitle = proc # {16th } # conf:vldb,
+  year      = {1990}
+}
+@proceedings{proc:vldb:1993,
+  title     = proc # {19th } # conf:vldb,
+  booktitle = proc # {19th } # conf:vldb,
+  year      = {1993}
+}
+@proceedings{proc:vldb:1994,
+  title     = proc # {20th } # conf:vldb,
+  booktitle = proc # {20th } # conf:vldb,
+  year      = {1994}
+}
+@proceedings{proc:vldb:1995,
+  title     = proc # {21st } # conf:vldb,
+  booktitle = proc # {21st } # conf:vldb,
+  year      = {1995}
+}
+@proceedings{proc:vldb:1996,
+  title     = proc # {22nd } # conf:vldb,
+  booktitle = proc # {22nd } # conf:vldb,
+  year      = {1996}
+}
+@proceedings{proc:vldb:1998,
+  title     = proc # {24th } # conf:vldb,
+  booktitle = proc # {24th } # conf:vldb,
+  year      = {1998}
+}
+@proceedings{proc:vldb:1999,
+  title     = proc # {25th } # conf:vldb,
+  booktitle = proc # {25th } # conf:vldb,
+  year      = {1999}
+}
+@proceedings{proc:vldb:2000,
+  title     = proc # {26th } # conf:vldb,
+  booktitle = proc # {26th } # conf:vldb,
+  year      = {2000}
+}
+@proceedings{proc:vldb:2001,
+  title     = proc # {27th } # conf:vldb,
+  booktitle = proc # {27th } # conf:vldb,
+  year      = {2001}
+}
+@proceedings{proc:vldb:2002,
+  title     = proc # {28th } # conf:vldb,
+  booktitle = proc # {28th } # conf:vldb,
+  year      = {2002}
+}
+@proceedings{proc:vldb:2004,
+  title     = proc # {30th } # conf:vldb,
+  booktitle = proc # {30th } # conf:vldb,
+  year      = {2004}
+}
+@proceedings{proc:vldb:2005,
+  title     = proc # {31th } # conf:vldb,
+  booktitle = proc # {31th } # conf:vldb,
+  year      = {2005}
+}
+
+
+
+% SIGMOD 
+@proceedings{proc:sigmod:1981,
+  title     = proc # {1981 } # conf:sigmod,
+  booktitle = proc # {1981 } # conf:sigmod,
+  year      = {1981}
+}
+@proceedings{proc:sigmod:1984,
+  title     = proc # {1984 } # conf:sigmod,
+  booktitle = proc # {1984 } # conf:sigmod,
+  year      = {1984}
+}
+@proceedings{proc:sigmod:1985,
+  title     = proc # {1985 } # conf:sigmod,
+  booktitle = proc # {1985 } # conf:sigmod,
+  year      = {1985}
+}
+@proceedings{proc:sigmod:1989,
+  title     = proc # {1989 } # conf:sigmod,
+  booktitle = proc # {1989 } # conf:sigmod,
+  year      = {1989}
+}
+@proceedings{proc:sigmod:1990,
+  title     = proc # {1990 } # conf:sigmod,
+  booktitle = proc # {1990 } # conf:sigmod,
+  year      = {1990}
+}
+@proceedings{proc:sigmod:1991,
+  title     = proc # {1991 } # conf:sigmod,
+  booktitle = proc # {1991 } # conf:sigmod,
+  year      = {1991}
+}
+@proceedings{proc:sigmod:1992,
+  title     = proc # {1992 } # conf:sigmod,
+  booktitle = proc # {1992 } # conf:sigmod,
+  year      = {1992}
+}
+@proceedings{proc:sigmod:1995,
+  title     = proc # {1995 } # conf:sigmod,
+  booktitle = proc # {1995 } # conf:sigmod,
+  year      = {1995}
+}
+@proceedings{proc:sigmod:2002,
+  title     = proc # {2002 } # conf:sigmod,
+  booktitle = proc # {2002 } # conf:sigmod,
+  year      = {2002}
+}
+@proceedings{proc:sigmod:2003,
+  title     = proc # {2003 } # conf:sigmod,
+  booktitle = proc # {2003 } # conf:sigmod,
+  year      = {2003}
+}
+@proceedings{proc:sigmod:2005,
+  title     = proc # {2005 } # conf:sigmod,
+  booktitle = proc # {2005 } # conf:sigmod,
+  year      = {2005}
+}
+@proceedings{proc:2008:sigmod,
+  title     = proc # {2008 } # conf:sigmod,
+  booktitle = proc # {2008 } # conf:sigmod,
+  year      = {2008}
+}
+% The naming scheme has changed in 2009
+@proceedings{proc:sigmod:2009,
+  title     = proc # {35th } # conf:sigmod,
+  booktitle = proc # {35th } # conf:sigmod,
+  year      = {2009}
+}
+
+
+% CIKM
+@proceedings{proc:cikm:1994,
+  title     = proc # {3rd } # conf:cikm,
+  booktitle = proc # {3rd } # conf:cikm,
+  year      = {1994} 
+}
+@proceedings{proc:cikm:2007,
+  title     = proc # {16th } # conf:cikm,
+  booktitle = proc # {16th } # conf:cikm,
+  year      = {2007} 
+}
+
+% ICDE
+@proceedings{proc:icde:1988,
+  booktitle = proc # {4th } # conf:icde,
+  title     = proc # {4th } # conf:icde,
+  year      = {1988}
+}
+@proceedings{proc:icde:1989,
+  booktitle = proc # {5th } # conf:icde,
+  title     = proc # {5th } # conf:icde,
+  year      = {1989}
+}
+@proceedings{proc:icde:1991,
+  booktitle = proc # {7th } # conf:icde,
+  title     = proc # {7th } # conf:icde,
+  year      = {1991}
+}
+@proceedings{proc:icde:1994,
+  booktitle = proc # {10th } # conf:icde,
+  title     = proc # {10th } # conf:icde,
+  year      = {1994}
+}
+@proceedings{proc:icde:1997,
+  booktitle = proc # {13th } # conf:icde,
+  title     = proc # {13th } # conf:icde,
+  year      = {1997}
+}
+@proceedings{proc:icde:1998,
+  booktitle = proc # {14th } # conf:icde,
+  title     = proc # {14th } # conf:icde,
+  year      = {1998}
+}
+@proceedings{proc:icde:2000,
+  booktitle = proc # {16th } # conf:icde,
+  title     = proc # {16th } # conf:icde,
+  year      = {2000}
+}
+@proceedings{proc:icde:2001,
+  booktitle = proc # {17th } # conf:icde,
+  title     = proc # {17th } # conf:icde,
+  year      = {2001}
+}
+@proceedings{proc:icde:2002,
+  booktitle = proc # {18th } # conf:icde,
+  title     = proc # {18th } # conf:icde,
+  year      = {2002}
+}
+@proceedings{proc:icde:2006,
+  booktitle = proc # {22nd } # conf:icde,
+  title     = proc # {22nd } # conf:icde,
+  year      = {2006}
+}
+@proceedings{proc:icde:2007,
+  booktitle = proc # {23rd } # conf:icde,
+  title     = proc # {23rd } # conf:icde,
+  year      = {2007}
+}
+@proceedings{proc:icde:2008,
+  booktitle = proc # {24th } # conf:icde,
+  title     = proc # {24th } # conf:icde,
+  year      = {2008}
+}
+@proceedings{proc:icde:2009,
+  booktitle = proc # {25th } # conf:icde,
+  title     = proc # {25th } # conf:icde,
+  year      = {2009}
+}
+
+% ICDT
+@proceedings{proc:icdt:2001,
+  booktitle = proc # {8th } # conf:icdt,
+  title     = proc # {8th } # conf:icdt,
+  year      = {2001}
+}
+
+% SSD
+@proceedings{proc:ssd:1993,
+  booktitle = proc # {3rd } # conf:ssd,
+  title     = proc # {3rd } # conf:ssd,
+  year      = {1993}
+}
+@proceedings{proc:ssd:1997,
+  booktitle = proc # {5th } # conf:ssd,
+  title     = proc # {5th } # conf:ssd,
+  year      = {1997}
+}
+@proceedings{proc:ssd:1999,
+  booktitle = proc # {6th } # conf:ssd,
+  title     = proc # {6th } # conf:ssd,
+  year      = {1999}
+}

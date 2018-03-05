@@ -1,0 +1,74 @@
+\begin{tikzpicture}[x=4em,y=3.7em,label distance=.3em]
+  \tiny
+
+  \node[rnode,draw] (p1) at (0,2)
+    {\centerrows{4.2em}{$p_1$\\$[-\infty,\infty)$}};
+  \node[rnode,right=0 of p1] (p1text) 
+    {\raggedrows{10em}{= Page identifier\\= Key range}};
+  
+  \node[rnode,draw] (p2) at (-1.5,1) 
+    {\centerrows{4.2em}{$p_2$\\$[-\infty,0)$}};
+  \node[rnode,draw] (p3) at (0,1) 
+    {\centerrows{4.2em}{$p_3$\\$[0,100)$}};
+  \node[rnode,draw] (p4) at (1.5,1) 
+    {\centerrows{4.2em}{$p_4$\\$[100,\infty)$}};
+
+  \node[rnode,draw] (p5) at (-1,0) 
+    {\centerrows{4.2em}{$p_5$\\$[0,25)$}};
+  \node[rnode,draw] (p6) at (0,0) 
+    {\centerrows{4.2em}{$p_6$\\$[25,75)$}};
+  \node[rnode,draw] (p7) at (1,0) 
+    {\centerrows{4.2em}{$p_7$\\$[75,100)$}};
+
+  % Connectors
+  \foreach \x in {p2,p3,p4}
+    \draw[-] (p1.south) -- (\x.north);
+  \foreach \x in {p5,p6,p7}
+    \draw[-] (p3.south) -- (\x.north);
+
+  % Not shown pages
+  \newdimen\btloy
+  \newdimen\btlox
+
+  \pgfextracty{\btloy}{\pgfpointanchor{p5}{north}}
+  \pgfextractx{\btlox}{\pgfpointanchor{p2}{south}}
+  \draw[-] (p2.south) -- ($(\btlox,\btloy) + (-.2,0)$);
+  \draw[-] (p2.south) -- ($(\btlox,\btloy) + (-.5,0)$);
+  \draw[-] (p2.south) -- ($(\btlox,\btloy) + (-.8,0)$);
+  \node at ($(\btlox,\btloy) + (-.5,-3ex)$) {\ldots};
+
+  \pgfextracty{\btloy}{\pgfpointanchor{p5}{north}}
+  \pgfextractx{\btlox}{\pgfpointanchor{p4}{south}}
+  \draw[-] (p4.south) -- ($(\btlox,\btloy) + (.2,0)$);
+  \draw[-] (p4.south) -- ($(\btlox,\btloy) + (.5,0)$);
+  \draw[-] (p4.south) -- ($(\btlox,\btloy) + (.8,0)$);
+  \node at ($(\btlox,\btloy) + (.5,-3ex)$) {\ldots};
+
+  % Key ranges and key-space cover
+  \coordinate[right=1 of p4] (l2p1);
+  \coordinate[label=below:{$0$}] (l2p2) at ($(l2p1) + (0.25,0)$);
+  \coordinate[label=below:{$100$}] (l2p3) at ($(l2p2) + (1,0)$);
+  \coordinate (l2p4) at ($(l2p3) + (0.25,0)$);
+
+  \draw[-|] (l2p1) -- node[above] {$p_2$} (l2p2);
+  \draw[|-|] (l2p2) -- node[above] {$p_3$} (l2p3);
+  \draw[|-] (l2p3) -- node[above] {$p_4$} (l2p4);
+
+  \coordinate[above=1 of l2p1] (l3p1);
+  \coordinate (l3p2) at ($(l3p1) + (1.5,0)$);
+  \draw[-] (l3p1) -- node[above] {$p_1$} node[below] {Keys} (l3p2);
+
+  \coordinate[below=1 of l2p1] (l1p1);
+  \coordinate[label=below:{$0$}] (l1p2) at ($(l1p1) + (0.25,0)$);
+  \coordinate[label=below:{$25$}] (l1p3) at ($(l1p2) + (0.25,0)$);
+  \coordinate[label=below:{$75$}] (l1p4) at ($(l1p3) + (0.5,0)$);
+  \coordinate[label=below:{$100$}] (l1p5) at ($(l1p4) + (0.25,0)$);
+  \coordinate (l1p6) at ($(l1p5) + (0.25,0)$);
+
+  \draw[-|] (l1p1) -- (l1p2);
+  \draw[|-|] (l1p2) -- node[above] {$p_5$} (l1p3);
+  \draw[|-|] (l1p3) -- node[above] {$p_6$} (l1p4);
+  \draw[|-|] (l1p4) -- node[above] {$p_7$} (l1p5);
+  \draw[|-] (l1p5) -- (l1p6);
+  
+\end{tikzpicture}

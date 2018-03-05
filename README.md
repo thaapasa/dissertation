@@ -43,3 +43,16 @@ The TSB-tree does not merge leaf pages and is therefore not optimal if
 logical data-item deletions are allowed.
 Our experiments show that the CMVBT outperforms the TSB-tree with
 range queries in the presence of deletions.
+
+## Compiling
+
+You can compile the dissertation with `pdflatex` (plain `LaTeX` is not enough),
+you need to run the command a couple of times.
+
+Use the parameter `--min-crossrefs=999` with Bibtex so that the references
+are created correctly.
+
+Requires a relatively recent `LaTeX` environment. The dissertation
+was compiled with `MikTex 2.8` on Windows.
+
+This information was last checked on 30.9.2010.

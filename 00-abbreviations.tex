@@ -1,0 +1,78 @@
+%%=====================================================================
+%% List of abbreviations
+%%=====================================================================
+
+\begin{listofabbreviations}
+
+\loxline{ACID}{Properties that are required of transactions: atomicity,
+consistency, isolation, and durability}{def:acid}
+
+\loxline{CMVBT}{Concurrent multiversion \Btree. 
+A fully concurrent index structure composed of a TMVBT index and a
+main-memory-resident VBT index}{def:cmvbt}
+
+\loxline{CTI}{Commit-time-to-identifier table.  
+This table is used in the CMVBT index to map commit-time versions into
+transaction identifiers}{def:cti}
+ 
+\loxline{DAG}{Directed acyclic graph}{def:dag}
+ 
+\loxline{Immortal~DB}{A multiversion database system built on top of
+Microsoft SQL Server. 
+Based on the \TSBtree\ index structure}{def:immortaldb} 
+
+\loxline{LRU}{Least recently used}{def:lru}
+
+\loxline{LSN}{Log sequence number}{def:lsn}
+
+\loxline{MBR}{Minimum bounding region}{def:mbr}
+
+\loxline{MVAS}{Multiversion access structure.
+A multiversion index structure designed by Varman and Verma. 
+Similar to the MVBT}{def:mvas}
+
+\loxline{MVBT}{Multiversion \Btree. An asymptotically optimal multiversion
+index by Becker et~al.}{def:mvbt}
+
+\loxline{PTT}{Persistent timestamp table. 
+The PTT is used to map transaction identifiers into
+commit-time versions in the \TSBtree. 
+It is similar to the CTI table but has a reverse mapping}{def:ptt}
+ 
+\loxline{SI}{Snapshot isolation, a commonly used multiversion
+concurrency-control algorithm that can be made serializable}{def:si}
+
+\loxline{SMO}{A structure-modification operation is 
+an operation that modifies the structure of the database index by
+splitting or merging a database page}{def:smo}
+ 
+\loxline{TMVBT}{Transactional multiversion \Btree. 
+Our transactional extension to the MVBT index. 
+Allows a single updating transaction to run concurrently with
+multiple read-only transactions}{def:tmvbt}
+
+\loxline{\TSBtree}{Time-split \Btree. 
+A multiversion index structure by Lomet and Salzberg}{def:tsb}
+ 
+\loxline{VBT}{Versioned \Btree. 
+A \Btree\ used for storing entries that contain version information in
+addition to the data item key and value}{def:vbt}
+
+\loxline{VTT}{Volatile timestamp table. Used as a main-memory cache for the
+PTT in the \TSBtree}{def:vtt}
+
+\loxline{WAL}{Write-ahead logging. 
+A policy that states that the database log file must be flushed onto disk
+before any pages that contain the corresponding updates described in
+the log are written onto disk}{def:wal}
+ 
+\loxline{WORM}{Write-once, read-many. 
+Describes media that can be written to only once, but read from many times,
+such as CD-R, DVD-R, BD-R, and tape archives}{def:worm}
+
+\loxline{WMRM}{Write-many, read-many. Describes media that can be written to
+multiple times, such as hard drives. 
+While this definition includes re-writable discs (CD-RW, DVD-RW, BD-RW), it
+is often assumed that WMRM media is faster than WORM media}{def:wmrm}
+
+\end{listofabbreviations}

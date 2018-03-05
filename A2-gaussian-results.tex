@@ -1,0 +1,74 @@
+%%=====================================================================
+%% Test Results for Gaussian Data Set
+%%=====================================================================
+\chapter{Test Results for Gaussian Data Set}
+\label{appendix:test-results-gaussian}
+
+The numerical results obtained from the test sets generated with a Gaussian
+random distribution are listed in this appendix.
+The names of the multiversion index structures are explained in
+\tableref{table:test-database-names-gaussian}.
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/database-names.tex}
+\caption{Names of the database index structures.}
+\label{table:test-database-names-gaussian}
+\end{center}
+\end{table}
+
+\clearpage
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/gaussian/qu-initial-5-summary.tex}
+\figcaption{Queries and updates, initial state, five actions/transaction}
+{The table shows the average buffer fixes, page reads and page writes (per
+action), and the elapsed real time (for the entire test).}
+\label{table:qu-initial-5-summary-gaussian}
+\end{center}
+\end{table}
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/gaussian/qu-initial-100-summary.tex}
+\figcaption{Queries and updates, initial state, 100 actions/transaction}
+{The table shows the average buffer fixes, page reads and page writes (per
+action), and the elapsed real time (for the entire test).}
+\label{table:qu-initial-100-summary-gaussian}
+\end{center}
+\end{table}
+
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/gaussian/qu-del-50-5-summary.tex}
+\figcaption{Queries and updates, \SI{50}{\percent} deleted, five
+actions/transaction}% 
+{The table shows the average buffer fixes, page reads and page writes (per
+action), and the elapsed real time (for the entire test).}
+\label{table:qu-del-50-5-summary-gaussian}
+\end{center}
+\end{table}
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/gaussian/qu-del-50-100-summary.tex}
+\figcaption{Queries and updates, \SI{50}{\percent} deleted, 100
+actions/transaction}% 
+{The table shows the average buffer fixes, page reads and page writes (per
+action), and the elapsed real time (for the entire test).}
+\label{table:qu-del-50-100-summary-gaussian}
+\end{center}
+\end{table}
+
+\begin{table}[htb]
+\begin{center}
+\input{images/tests/gaussian/range-summary.tex}
+\figcaption{Current-version key-range queries}
+{Range size is 5~\% of the entire key-space size.
+The table shows the average buffer fixes, page reads and page writes (per
+action), and the elapsed real time (for the entire test).}
+\label{table:range-summary-gaussian}
+\end{center}
+\end{table}

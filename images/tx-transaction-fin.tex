@@ -1,0 +1,74 @@
+\subfigure[Alkutila]{%
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ox) at ($(oo) + (0,6)$);
+  \coordinate (ov) at ($(oo) + (4,0)$);
+
+  \coordinate (cur) at ($(o) + (1,6.8)$);
+
+  \coordinate (oa) at ($(o) + (0,1)$);
+  \coordinate (ob) at ($(o) + (0,2)$);
+  \coordinate (oc) at ($(o) + (0,3)$);
+  \coordinate (od) at ($(o) + (0,4)$);
+
+  \coordinate[label=right:{$(1,\alpha)$}] (a) at ($(oa) + (1,0)$);
+  \coordinate[label=right:{$(2,\beta)$}] (b) at ($(ob) + (1,0)$);
+  \coordinate[label=right:{$(3,\gamma)$}] (c) at ($(oc) + (1,0)$);
+  \coordinate[label=right:{$(4,\delta)$}] (d) at ($(od) + (1,0)$);
+  
+  \foreach \point in {a,b,c,d}
+    \fill[black] (\point) circle (2pt);
+
+  \draw[-] (oa) -- (a);
+  \draw[-] (ob) -- (b);
+  \draw[-] (oc) -- (c);
+  \draw[-] (od) -- (d);
+
+  \draw[->] (oo) -- node[lbl,above] {Avaimet} (ox);
+  \draw[->] (oo) -- node[lbl,below] {Versiot} (ov);
+  \draw[->] (cur) -- ($(cur) + (0,-0.5)$);
+\end{tikzpicture}
+%\:
+%\raisebox{\txfigy}{$\Rightarrow$}
+%\:
+}
+\subfigure[Lopputila]{%
+
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ox) at ($(oo) + (0,6)$);
+  \coordinate (ov) at ($(oo) + (4,0)$);
+
+  \coordinate (cur) at ($(o) + (2.5,6.8)$);
+
+  \coordinate (oa) at ($(o) + (0,1)$);
+  \coordinate (ob) at ($(o) + (0,2)$);
+  \coordinate (oc) at ($(o) + (0,3)$);
+  \coordinate (od) at ($(o) + (0,4)$);
+  \coordinate (oe) at ($(o) + (0,5)$);
+
+  \coordinate[label=right:{$(1,\alpha)$}] (a1) at ($(oa) + (1,0)$);
+  \coordinate[label=right:{$(2,\beta)$}] (b1) at ($(ob) + (1,0)$);
+  \coordinate (c1) at ($(oc) + (1,0)$);
+  \coordinate (d1) at ($(od) + (1,0)$);
+
+  \coordinate[label=right:{$(1,\alpha')$}] (a2) at ($(oa) + (2.5,0)$);
+  \coordinate[label=right:{$(3,\gamma)$}] (c2) at ($(oc) + (2.5,0)$);
+  \coordinate[label=right:{$(4,\delta)$}] (d2) at ($(od) + (2.5,0)$);
+  \coordinate[label=right:{$(5,\epsilon)$}] (e2) at ($(oe) + (2.5,0)$);
+
+  \draw[-] (oa) -- (a1);
+  \draw[-] (ob) -- (b1);
+  \draw[-] (oc) -- (c2);
+  \draw[-] (od) -- (d2);
+
+  \foreach \point in {a1,a2,b1,c1,c2,d1,d2,e2}
+    \fill[black] (\point) circle (2pt);
+
+  \draw[->] (oo) -- node[lbl,above] {Avaimet} (ox);
+  \draw[->] (oo) -- node[lbl,below] {Versiot} (ov);
+  \draw[->] (cur) -- ($(cur) + (0,-0.5)$);
+\end{tikzpicture}%
+}

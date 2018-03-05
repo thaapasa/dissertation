@@ -1,0 +1,175 @@
+%%=====================================================================
+%% Abstracts
+%%=====================================================================
+
+\newcommand{\abscross}{\hspace{0.8pt}X}
+%\newcommand{\pagecount}{\total{page}}
+
+
+%% English information
+%%---------------------------------------------------------------------
+\selectlanguage{english}
+\author{\disauthor}          % Author of the dissertation 
+\title{\distitle}            % Title of the dissertation
+% Date of the manuscript
+\manuscriptdate{\printdate{\dismanuscriptdate}} 
+% Date of the revised manuscript 
+\manuscriptreviseddate{\printdate{\disreviseddate}}
+% Date of the defence     
+\defencedate{\printdate{\disdefencedate}} 
+\monograph{\abscross}        % Add a cross (X) if the dissertation is a monograph 
+\articledissertation{}       % Add a cross (X) if the dissertation is a compound dissertation
+\faculty{Faculty of Information and Natural Sciences} % Faculty
+\department{Department of Computer Science and Engineering} % Department 
+\fieldofresearch{Software Systems} % Field of research
+\opponents{Prof.~Peter~Widmayer} % Opponent(s)
+\supervisor{Prof.~Eljas~Soisalon-Soininen} % Supervisor
+\instructor{Prof.~Seppo~Sippu} % Instructor
+\keywords{\diskeywords}      % Keywords
+\numberofpages{\pagecount~p.} % Number of pages
+\isbnprint{\disisbn}         % ISBN number of the printed version
+\isbnpdf{\disisbnpdf}        % ISBN number of the pdf version
+\issnprint{\disissn}         % ISSN number of the printed version
+\issnpdf{\disissnpdf}        % ISSN number of the pdf version
+\xlanguage{English}          % Language of the dissertation
+\publisher{Department of Computer Science and Engineering} % Publisher
+\distribution{Department of Computer Science and Engineering} % Distribution of the printed version 
+% Add a cross (X) if the dissertation can be read on the Diss service at
+% http://lib.tkk.fi/Diss/
+\onlineversion{\abscross}            
+% Web address of the dissertation on the Diss service
+\onlineaddress{\disurl} 
+
+\begin{abstract}{english}
+% English abstract of the dissertation
+Many important database applications need to access previous versions of the
+data set, thus requiring that the data are stored in a multiversion database
+and indexed with a multiversion index, such as the multiversion
+\Btree\ (MVBT) of Becker et~al. 
+The MVBT is optimal, so that any version of the database can be accessed
+as efficiently as with a single-version \Btree\ that is used to index
+only the data items of that version, but it cannot be used in a full-fledged
+database system because it follows a single-update model, and the update
+cannot be rolled back.
+
+We have redesigned the MVBT index so that a single multi-action updating
+transaction can operate on the index structure concurrently with multiple
+concurrent read-only transactions.
+Data items created by the transaction become part of the same 
+version, and the transaction can roll back.
+We call this structure the \emph{transactional MVBT} (TMVBT)\@.
+The TMVBT index remains optimal even in the presence of logical key
+deletions. 
+Even though deletions in a multiversion index must not physically
+delete the history of the data items, queries and range scans 
+can become more efficient, if the leaf pages of the
+index structure are merged to retain optimality.
+
+For the general transactional setting with multiple updating transactions, we
+propose a multiversion database structure called the \emph{concurrent MVBT}
+(CMVBT), which stores the updates of active transactions in a separate
+main-memory-resident \emph{versioned \Btree} index.
+A system maintenance transaction is periodically run to apply the updates of
+committed transactions into the TMVBT index. 
+We show how multiple updating transactions can operate on the CMVBT
+index concurrently, and our recovery algorithm is based on the standard
+ARIES recovery algorithm.
+
+We prove that the TMVBT index is asymptotically optimal, and show that the
+performance of the CMVBT index in general transaction processing is
+on par with the performance of the time-split \Btree\ (\TSBtree)
+of Lomet and Salzberg.
+The \TSBtree\ does not merge leaf pages and is therefore not optimal if
+logical data-item deletions are allowed. 
+Our experiments show that the CMVBT outperforms the \TSBtree\ with
+range queries in the presence of deletions.
+\end{abstract}
+
+
+%% Finnish information
+%%---------------------------------------------------------------------
+\selectlanguage{finnish}
+\author{\disauthor}          % Väitöskirjan tekijä
+\title{\distitlefi}          % Väitöskirjan nimi
+\manuscriptdate{\dismanuscriptdate} % Käsikirjoituksen päivämäärä
+\manuscriptreviseddate{\disreviseddate} % Korjatun käsikirjoituksen päivämäärä 
+\defencedate{\disdefencedate} % Väitöstilaisuuden ajankohta
+\monograph{\abscross}        % Lisää rasti (X) jos väitöskirja on monografia 
+\articledissertation{}       % Lisää rasti (X) jos väitöskirja on nippuväitöskirja
+\faculty{Informaatio- ja luonnontieteiden tiedekunta} % Tiedekunta  
+\department{Tietotekniikan laitos} % Laitos 
+\fieldofresearch{Ohjelmistojärjestelmät} % Tutkimusala
+\opponents{Prof.~Peter~Widmayer} % Vastaväittäjä(t)
+\supervisor{Prof.~Eljas~Soisalon-Soininen} % Työn valvoja 
+\instructor{Prof.~Seppo~Sippu} % Työn ohjaaja
+\keywords{\diskeywordsfi}    % Asiasanat
+\numberofpages{\pagecount~s.} % Sivumäärä
+\isbnprint{\disisbn}         % Painetun version ISBN numero
+\isbnpdf{\disisbnpdf}        % pdf-version ISBN numero
+\issnprint{\disissn}         % Painetun version ISSN numero
+\issnpdf{\disissnpdf}        % pdf-version ISSN numero
+\xlanguage{Englanti}         % Väitöskirjan kieli
+\publisher{Tietotekniikan laitos} % Julkaisija 
+\distribution{Tietotekniikan laitos} % Painetun väitöskirjan jakelu
+% Lisää rasti (X) jos väitöskirja on luettavissa verkossa osoitteessa
+% http://lib.tkk.fi/Diss/
+\onlineversion{\abscross}            
+% Väitöskirjan verkko-osoite Diss-palvelussa
+\onlineaddress{\disurl} 
+
+\begin{abstract}{finnish}
+% Väitöskirjan suomenkielinen tiivistelmä
+Perinteisesti tietokantasovellusten tietokantaan tekemät päivitykset
+korvaavat tietokannan tilan uudella, jolloin aiem\-paa tilaa eli versiota ei
+enää ole olemassa.
+Nykyisin tietokantasovelluksilla haetaan kuitenkin myös aiem\-pi\-en
+versioiden monikoita, mikä
+%Useissa nykyisissä tietokantasovelluksissa on kuitenkin tärkeää voida
+%kysellä myös aiempien versioiden monikoita, mikä 
+tulee ottaa huomioon tietokantojen hakemistorakenteiden suunnittelussa.
+Becker ja kumppanit ovat kehittäneet \emph{moniversio-\Bpuu{}n}
+(\emph{multiversion \Btree}, MVBT), joka on eräs optimaalinen
+moniversiohakemistorakenne.
+Optimaalisuus tarkoittaa tässä sitä, että kaikki operaatiot ovat aina yhtä
+tehokkaita kuin vastaavassa yhden version hakemisto\-rakenteessa.
+MVBT-rakenteen rajoitteena on kuitenkin se, että siinä yksi versio
+voi sisältää vain yhden päivitysoperaation, kun taas trans\-aktio\-mallissa
+yksi trans\-aktio voi tehdä monta päivitystä. 
+Toinen rajoite rakenteessa on se, että päivityksiä ei voi peruuttaa.
+
+Väitöskirjassa laajennetaan MVBT-rakennetta siten, että yksi transaktio voi
+päivittää useampaa avainta ja transaktiot voidaan peruuttaa. 
+Laajennetussa \emph{transaktionaalisessa MVBT}-rakenteessa
+(\emph{transactional MVBT}, TMVBT) voidaan yhtä 
+päivitystransaktiota suorittaa rinnakkain usean lukutransaktion kanssa.
+Hakemistorakenne on optimaalinen kaikissa tilanteissa, myös
+poisto-operaatioiden jälkeen.
+%Vaikka historiatiedot tulee säilyttää moniversiohakemistorakenteessa, voidaan
+%avainvälihakujen suoritustehoa parantaa kopioimalla ja yhdistämällä
+%tietokantasivuja joilta on poistettu monikoita.
+
+TMVBT-rakennetta ei voi sellaisenaan käyttää tilanteissa, joissa
+tietokantasovelluksessa täytyy suorittaa rinnakkain useita
+päivitystransaktiota. 
+Näitä tilanteita varten väitöskirjassa esitellään \emph{rinnakkainen
+MVBT}-rakenne (\emph{concurrent MVBT}, CMVBT), joka koostuu
+TMVBT-rakenteesta sekä sen rinnalla toimivasta keskus\-muistissa pidettävästä
+\emph{versioidusta \Bpuu{}sta} (VBT), johon aktiivisten trans\-aktioiden
+muutokset tallennetaan trans\-aktioiden suorituksen ajaksi. 
+Kun trans\-aktiot sitoutuvat, muutokset siirretään versioidusta \Bpuu{}sta
+TMVBT-rakenteeseen. 
+CMVBT toimii yleisten rinnakkaisuudenhallinta-algoritmien
+kanssa ja sen elvytysalgoritmi perustuu yleisesti käytettyyn
+ARIES-elvytysalgoritmiin.
+
+Väitöskirjassa todistetaan, että päähakemistorakenteena toimiva TMVBT on
+optimaalinen. 
+Lisäksi osoitetaan kokeellisesti, että CMVBT-rakenne on yhtä tehokas 
+kuin Lometin ja Salzbergin \TSBpuu\ (time-split \Btree) yleisissä kyselyissä
+ja päivityksissä, sekä tehokkaampi avainvälihauissa, kun
+tietokannasta on poistettu monikoita.
+Tehokkuusero johtuu siitä, että \TSBpuu\ ei yhdistä tietokantasivuja eikä
+täten ole optimaalinen.
+\end{abstract}
+
+\selectlanguage{english}

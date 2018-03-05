@@ -1,0 +1,1147 @@
+%%=====================================================================
+%% Time-Split and Multiversion B-trees
+%%=====================================================================
+\chapter{Time-Split and Multiversion \Btree{}s}
+\label{chapter:tsbmvbt}
+
+The previous chapters have discussed the theory behind multiversion
+databases (that is, partially persistent transaction-time databases), and 
+reviewed some approached for indexing such data.
+So far, none of the structures introduced have been optimal,
+according to our definition (\defref{def:optimal-mv}).
+In this chapter, we review three of the more recent multiversion index
+structures, one of which are optimal.
+In addition, we shortly discuss a multiversion database system that uses one
+of these structures and is built on top of the commercial Microsoft SQL
+Server.
+
+We begin this chapter in \secref{sec:tsbmvbt:common} by listing some of
+the common design ideas shared by all the efficient structures reviewed in
+this chapter. 
+Then, in \secref{sec:tsbmvbt:tsb}, we review the first of these structures,
+the time-split \Btree\
+of Lomet and
+Salzberg (\TSBtree~\cite{lomet:1989:tsb,lomet:1990:tsb-performance}). 
+After that, \secref{sec:tsbmvbt:immortaldb} describes
+Immortal~DB~\cite{lomet:2005:immortaldb,lomet:2006:transactiontime,lomet:2008:version-compression,lomet:2009:improving},
+which is based on the \TSBtree. 
+Immortal~DB is a multiversion database management system that Microsoft is
+researching and developing on top of the Microsoft SQL Server.
+In \secref{sec:tsbmvbt:mvbt}, we review the multiversion \Btree\ of Becker 
+et~al.\ (MVBT,~\cite{becker:1993:optimal,becker:1996:mvbt}), the first optimal
+multiversion index structure.
+Finally, \secref{sec:tsbmvbt:mvas} describes the multiversion access method
+of Varman and Verma (MVAS,~\cite{varman:1997:multiversion}), which was
+developed at about the same time as the MVBT, and shares many characteristics
+of the MVBT\@.
+Varman and Verma use a slightly more relaxed definition of optimality for
+multiversion indexes, and the MVAS is not optimal according to our definition.
+
+
+
+%% Common Design Bases
+%%---------------------------------------------------------------------
+\section{Common Design Bases}
+\label{sec:tsbmvbt:common}
+
+All of the index structures presented in this chapter have a similar
+structure: the database pages cover regions in key-version space, the
+index structures form a directed acyclic graph of database pages (although
+these structures may still be called \emph{trees}), and for each
+version, there exists a search tree~$S_v$ (see definition below) that is
+used to locate the entries belonging to that version.
+Let us call these multiversion structures region-based multiversion index
+structures:
+
+\thmskip
+\begin{definition}
+A \emph{region-based multiversion index} is a multiversion database
+index structure in which all the pages cover regions in key-version space.
+The structure of the pages forms a directed acyclic graph.
+Let \kvr{p} denote the key-version region of a page $p$. 
+Each parent page~$p$ at level~$l$ contains links to child pages $Q$ at
+level $l-1$ so that $q \in Q \Leftrightarrow \kvr{p} \cap \kvr{q}
+\neq \emptymark$. 
+The key-version regions of pages on the same level of the graph do not
+overlap.
+\end{definition}
+\thmskip
+\begin{definition}
+\label{def:search-tree}
+For each version~$v$ in a region-based multiversion index, there is
+a \emph{search tree}~$S_v$ that is a subgraph of the entire multiversion
+index graph.
+The subgraph~$S_v$ is a tree and all the entries of the data items that are
+alive at version~$v$ are located in the pages of~$S_v$. 
+An example of a search tree $S_{10}$ is shown in
+\figref{fig:sv-mv-index-comparison:mv} on
+page~\pageref{fig:sv-mv-index-comparison:mv}.
+For each search tree~$S_v$ and all levels~$l$ of~$S_v$, the pages
+that belong to $S_v$ at the same level~$l$ partition the entire key-space into
+disjoint regions.
+Each search tree thus covers the entire key space at each level of the search
+tree.
+\end{definition}
+\thmskip
+\begin{definition}
+\label{def:consistent-balanced}
+A region-based multiversion index structure is said to be \emph{structurally
+consistent}, if all the index-specific invariants of the structure
+hold; and \emph{balanced}, if 
+(1)~it is structurally consistent;
+(2)~all the pages of the search tree~$S_v$ contain at least a minimum number
+of entries that are alive at version~$v$, for each version~$v$; and
+(3)~for any search tree~$S_v$, all the root-to-leaf paths of~$S_v$ are of the
+same length.
+\end{definition}
+\thmskip
+
+Note that our definition of a balanced index structure requires that the
+lengths of all the search paths within any one version are of the same
+length. 
+In practice, this is guaranteed by designing the structure-modification
+operations so that the index never becomes unbalanced.
+
+\begin{figure}[htb]
+\begin{center}
+\input{images/mv-index-example}
+\figcaption{Structure of a balanced multiversion index}{}
+\label{fig:mv-index-example}
+\end{center}
+\end{figure}
+
+\figref{fig:sv-mv-index-comparison:mv} in the previous chapter shows the
+general structure of these multiversion index structures, and
+\figref{fig:mv-index-example} shows the structure of a balanced
+region-based multiversion index that has an auxiliary \rootstar\ structure
+for locating the roots of different search trees.
+Note that search trees $S_{v_1}$ and $S_{v_2}$ rooted at pages $p_6$ and
+$p_9$ have a different height. 
+Let us also define what we mean by live entries and live pages in the
+multiversion indexes:
+
+\thmskip
+\begin{definition}
+\label{def:alive-entries-pages}
+For all versions~$v$, an entry that represents a data item is \emph{alive} at
+version~$v$ if the data item is alive at version~$v$; and a database page is
+\emph{alive} at version~$v$ if it is part of the search
+tree~$S_v$.
+\end{definition}
+\thmskip
+
+
+Salzberg et~al.\ have recently published a general framework for indexing
+fully persistent transaction-time data~\cite{salzberg:2004:framework} (recall 
+\defref{def:fully-persistent}). 
+Although designed to include fully persistent indexes, the framework
+encompasses many of the features present in the efficient indexes reviewed in
+this chapter.
+Such features are, for example, maintaining a minimum number of live entries
+(\defref{def:alive-at-version}) in each page and consolidating (merging)
+those pages where the number of live entries falls below the acceptable
+limit.
+Because the framework is designed for full persistence, some of its features
+are however unnecessarily complicated for partial persistence.
+More specifically, the framework describes a version-tree structure that is
+used to determine which data item entries are along the same version branch.
+This adds a significant overhead to finding the correct version of a data
+item from a database page. 
+Furthermore, some of the pages in the index structure described in the
+framework can contain \emph{ghost pages}, which are pages that only contain
+\emph{null markers} that are used to specify endpoints of the life spans
+of data items.
+As is shown with the multiversion \Btree\ (described in
+\secref{sec:tsbmvbt:mvbt}), these pages can be avoided if the
+structure is only partially persistent.
+
+
+%% Time-split B-tree
+%%---------------------------------------------------------------------
+\section{Time-split \Btree}
+\label{sec:tsbmvbt:tsb}
+\label{def:tsb}
+
+The \emph{time-split \Btree} (\TSBtree) of Lomet and
+Salzberg~\cite{lomet:1989:tsb,lomet:1990:tsb-performance} is a multiversion
+index structure that is based on Easton's write-once \Btree\ (see
+\secpageref{def:wobt}). 
+The \TSBtree\ structure forms a directed acyclic graph of database pages.
+There is a single root page that is shared by all versions, and the 
+height of the search tree~$S_v$ is therefore the same for all
+versions~$v$.
+The root page of the \TSBtree\ covers the entire key-version space.
+The graph structure is formed by splitting pages that have become full.
+Each page can be either \emph{key-split} or \emph{time-split}.
+Splitting a page~$p$ creates a new page~$p'$ and the entries are distributed
+between $p$ and $p'$ based on the new dimensions of the pages. 
+If the key-version range of a child page (or the life span of a
+leaf-page entry) extends past the split boundary, the child page identifier
+(or leaf-page entry) is duplicated to both of the pages $p$ and $p'$.
+
+There are two types of pages in the \TSBtree: \emph{current pages} and
+\emph{historical pages}.
+The life spans of all current pages cover the current version; that is, the
+current pages are alive.
+The time-split operation creates a new historical page $p'$.
+When time-splitting page~$p$, entries with deletion times smaller than the
+split boundary are moved to the historical page~$p'$, entries with life spans
+covering the split boundary are copied to the historical page, and the rest
+of the entries are left in the current page~$p$. 
+The page~$p$ thus remains in use for current-version queries, and the
+historical page~$p'$ can be moved to a tertiary storage for archival.
+This is possible, because the \TSBtree\ maintains the following invariant:
+
+\thmskip
+\begin{invariant}
+\label{inv:tsb:one-parent}
+In the \TSBtree, current pages have at most a single parent. 
+Historical pages can have multiple parents.
+\end{invariant}
+\thmskip
+
+If such an invariant were not enforced, there might be an unbounded number
+of parent pages that need to be updated when a page is split.
+However, this invariant imposes a restriction on the time-split operation:
+none of the live entries on page~$p$ must be copied to the historical
+page~$p'$. 
+A page~$p$ therefore cannot be time-split into a historical page~$p'$ based
+on a version~$v$ that is covered by the life span of a live entry; that is,  
+if $p$ contains an entry with a life span $[v_1, \infty)$ such that $v_1 <
+v$. 
+By adhering to these rules, the following invariant can be maintained, and
+the historical pages can be directly written to a write-once media
+during a time-split.
+
+\thmskip
+\begin{invariant}
+\label{inv:tsb:historical-immutable}
+In the \TSBtree, historical pages are never modified.
+\end{invariant}
+\thmskip
+
+When fine-tuning the \TSBtree, it is possible to make a choice on how often 
+key splits and time splits are used.
+If the goal is to minimize the index size, key splits should be used more
+often.
+If the performance of the current-version queries is important, version
+splits should be more frequently applied.
+This is a natural way for adjusting the behaviour of the index for varying
+database loads.
+The original \TSBtree~\cite{lomet:1989:tsb} was designed mainly for
+scenarios where data is never deleted, and pages therefore do not need to be
+merged.
+This limitation still exists, and it means that the key ranges of pages can
+only shrink, and never expand. 
+
+The \TSBtree\ that was adapted for the Immortal~DB (discussed in the next
+section) manages data deletion by inserting new entries that mark item
+deletion. 
+While this approach works, it means that key splits and time splits
+alone cannot guarantee that pages have a minimum number of live entries for
+all the versions that are stored in the pages.
+For optimality, the access costs of the operations must be
+logarithmic in the number of entries that are alive at the queried version.
+This is guaranteed if the index structure is balanced (see
+\defref{def:consistent-balanced}), so that each page~$p$ with a life span
+$[v_1, v_2)$ contains at least \minlive\phantomsection\label{def:minlive}
+entries that are alive at version~$v$, for each $v \in [v_1, v_2)$.
+%and all the root-to-leaf paths of the search tree $S_v$ are of the same
+%length. 
+Here, \minlive\ is an integer configuration variable that must be larger than
+one so that the fan-out at each level of the search tree is greater than one,
+thus guaranteeing a logarithmic height for the search tree and maintaining
+the performance of range queries.
+The variable \minlive\ must furthermore be linearly dependent on the page
+capacity~\capacity, so that the cost differs only by a constant when the base
+of the logarithm is~\capacity.
+
+Lomet and Salzberg~\cite{lomet:1989:tsb,lomet:1990:tsb-performance} do not
+give asymptotic bounds for the costs of the user actions, but rather
+derive exact formulas for calculating the size of the index structure and
+for the amount of redundancy in the index. 
+A general space complexity class for multiversion indexes is \Oh{n/\capacity}
+database pages, where $n$ is the number of updates performed in the history of
+the database; the \TSBtree\ belongs to this complexity
+class~\cite{salzberg:1999:comparison}.
+Regarding time complexity, we formulate some general bounds for the costs of
+the actions in the \TSBtree\ here:
+
+\thmskip
+\begin{theorem}
+All single-key actions in the \TSBtree\ targeting any version~$v$ have a cost
+of \OhT{\log_\capacity m} pages, where $m$ is the number of updates performed
+on the \TSBtree\ during its history. 
+The worst-case cost of a key-range query action that queries the range $[k_1,
+k_2)$ of version~$v$ is \OhT{\log_\capacity m + \entries{k} / \capacity},
+where $\entries{k}$ is the maximum possible amount of discrete keys in the
+queried range (for databases that store integer keys, $\entries{k} = k_2 -
+k_1$).
+\end{theorem}
+\begin{proof}
+Because the \TSBtree\ has a single root page, the height of the index
+structure is determined by the total number of entries indexed by the entire
+\TSBtree, which in turn is dependent on the number of updates performed on
+the index.
+The cost of the single-key operations derives directly from the traversal
+from the root page to the correct leaf page.
+For the range query, the number of page accesses is not bounded by the size
+of the retrieved item set, because it is possible that there are leaf pages
+that contain only deleted entries that are not relevant to the query but still
+need to be processed. 
+In the worst case, the index contains $\entries{k}$ live entries in the
+queried range at version~$v_1$; that is, the index contains a live entry for
+each possible key in the queried range. 
+Assuming that the history contains no deletions, then $m =
+\entries{v_1}$ (when version~$v_1$ is the latest version), and the range
+query for version~$v_1$ is optimal (as per \defref{def:optimal-mv}), because
+$\entries{k} = r$, the size of the retrieved item set.
+If all the entries are deleted at version~$v_2$, the entries are marked
+deleted but the leaf pages are not merged.
+The range-query operation targeting version~$v_2$ must process as many pages
+as the query that targets version~$v_1$, even though the pages do not
+contain any entries that are relevant to the query.
+\end{proof}
+\thmskip
+
+Lomet and Salzberg have evaluated the performance of several different
+splitting policies~\cite{lomet:1990:tsb-performance}. 
+According to their experiments, the policy called Isolated-Key-Split
+(\abbr{IKS})\phantomsection\label{def:iks} is a good choice if rewritable
+media (write-many, read-many, or \abbr{WMRM}
+media\phantomsection\label{def:wmrm}) is available and
+inexpensive\footnote{Their exact wording was that the cost of
+\abbr{WORM} storage should be less than a factor of ten cheaper than 
+\abbr{WMRM} storage cost~\cite{lomet:1990:tsb-performance}.}.
+With this policy, pages are key-split whenever more than two thirds of the
+entries in the page are alive; and time-split otherwise.
+When time-splitting a page, the split is always performed based on the
+latest committed version.
+This policy optimizes the size of the index structure, and was designed at
+a time when \abbr{WMRM} media was not as inexpensive as it is currently.
+With the Immortal DB more recent split policies have been introduced. 
+These are reviewed in the next section.   
+
+From the beginning, it has been assumed that lazy timestamping (see
+\secpageref{def:lazy-ts}) is used with the \TSBtree.
+The initial \TSBtree\ article~\cite{lomet:1989:tsb} does not explain how and
+when the records should be timestamped with the correct commit-time versions,
+but rather suggests that Stonebraker's approach for the PostgreSQL
+database system~\cite{stonebraker:1987:postgres} could be used.
+In this approach, each relation may be assigned to one of the following three
+levels: no archive, light archive, and heavy archive. 
+From these, \emph{no archive} practically means that the relation is a
+single-version relation, and no access to past states is possible.
+For the other settings, the entries are first stamped with the transaction
+identifier, and the mapping from commit-time versions to transaction
+identifiers is inserted in a special relation when the transaction commits. 
+With the \emph{light archive} setting, each time a historical entry is
+requested, the transaction identifier is mapped to the commit-time version by
+reading the proper value from the special relation.
+With the \emph{heavy archive} setting, the mapping is performed on the first
+access, and the historical entry is updated with the commit-time version so
+that subsequent accesses do not need to load the mapping from the special
+relation.
+The Immortal DB (discussed in the next section) more clearly defines that a
+timestamping scheme similar to the heavy archive option is used to lazily
+timestamp the entries.
+
+In conclusion, the TBS-tree is a practical index structure that can be easily
+fine-tuned for different data sets, but it does not guarantee optimal
+access costs for updates or queries of any version.
+
+
+
+%% Immortal DB
+%%---------------------------------------------------------------------
+\section{Immortal DB}
+\label{sec:tsbmvbt:immortaldb}
+\label{def:immortaldb}
+
+Lomet et~al.\ have chosen the time-split \Btree~(\TSBtree) as the
+basis when implementing multiversion support to the \emph{Immortal~DB}
+multiversion database
+system~\cite{lomet:2005:immortaldb,lomet:2006:transactiontime,lomet:2008:version-compression,lomet:2009:improving}.
+The multiversion database is built on top of existing Microsoft SQL Server
+code. 
+An important aspect of the implementation was that the existing program code
+must be compatible with the new multiversion code.
+The multiversion functionality has been introduced gradually, first by
+chaining versions together in the original SQL Server \Btree\ index, and then
+by replacing the \Btree\ based index with the
+\TSBtree~\cite{lomet:2006:transactiontime,lomet:2008:version-compression}.
+Immortal DB therefore serves as an example that multiversion functionality
+can be gradually added to an existing database system.
+
+The Immortal DB also introduced changes to the \TSBtree\ index structure.
+From our point of view, the important ones are the more specific explanation
+of lazy timestamping and the new splitting policies designed to cluster the
+data items that are alive at the current version more efficiently.
+The articles furthermore specify how the entries are stored in
+the data
+pages~\cite{lomet:2006:transactiontime,lomet:2008:version-compression} and
+how the pages can be compressed~\cite{lomet:2008:version-compression}.
+
+The entries in Immortal DB are initially timestamped with the
+temporary transaction identifier.
+When the transaction commits, a mapping between the transaction identifier and
+the commit-time version of the transaction is inserted into a \emph{persistent
+timestamp table} (\abbr{PTT})\phantomsection\label{def:ptt}\@.
+This table is stored in a \Btree\ index so that the contents are made
+persistent and can be recovered in the event of a system crash.
+Because all entries need to be timestamped during the first access, there
+will be many queries to the \abbr{PTT}\@.
+The Immortal DB therefore also maintains a main-memory-based \emph{volatile
+timestamp table} (\abbr{VTT})\phantomsection\label{def:vtt} that serves as a
+cache for the \abbr{PTT}\@.
+In addition to storing these mappings, the \abbr{VTT} also contains a
+reference counter for determining how many entries there are that have
+not yet been timestamped.
+When new data items are inserted to the database, the reference count is
+incremented.
+When entries in the database pages are timestamped after the transaction that
+inserted them has committed, the reference counter is decremented.
+When the reference counter reaches zero, the mapping is removed from both
+the \abbr{VTT} and the \abbr{PTT}\@.
+The \abbr{PTT} is thus used only to provide recoverability: if the system
+fails, the \abbr{VTT} can be rebuilt from the \abbr{PTT} contents.
+The reference counter, however, is not present in the \abbr{PTT}, and 
+is thus lost if the system fails.
+This can cause some entries to remain indefinitely in the \abbr{PTT} and
+\abbr{VTT}, because it is not known if there still exists entries that 
+need to be timestamped with the commit-time version.
+
+The Immortal DB articles also specify two new split policies for the
+\TSBtree, namely the \abbr{WOB}-tree split policy and the deferred split
+policy. 
+The \emph{\abbr{WOB}-tree split
+policy}~\cite{lomet:2008:version-compression} updates the \abbr{IKS} split
+policy (see \secpageref{def:iks}) so that whenever a page contains more than
+two thirds of live entries, it is first time-split and afterwards key-split.
+Otherwise the page is time-split, as with the \abbr{IKS} split policy.
+The split threshold (two thirds of the entries in this example) is now a
+configuration variable, but Lomet et~al.\ use two thirds when there is no
+compression in the pages~\cite{lomet:2008:version-compression}.
+The \emph{deferred split policy}~\cite{lomet:2009:improving} defers the
+key-split that is performed after the time-split in the \abbr{WOB}-tree split
+policy.
+That is, if a page that needs to be split contains enough live entries
+according to the threshold, then the page is time-split and a key-split is
+deferred by marking the page.
+When the marked page next needs to be split, it is key-split without first
+time-splitting it.
+Unmarked pages that have fewer live entries than the threshold are
+simply time-split, as in the \abbr{WOB}-tree and \abbr{IKS} split policies.
+
+In addition to the deferred key-split, the deferred split policy introduces
+batch updates to the \abbr{PTT} table. 
+Normally, whenever a transaction commits, the mapping from transaction
+identifiers to commit-time versions is inserted to the \abbr{PTT}, thus
+adding extra \abbr{I/O} operations to each commit operation.
+With the deferred split policy, the mappings are only inserted into the
+\abbr{VTT} during a commit operation.
+The \abbr{PTT} is then updated later on with a larger batch of mappings. 
+This reduces the number of \abbr{I/O} operations as the \abbr{PTT} entries
+are clustered next to each other and also because some of the entries may
+already have been removed from the \abbr{VTT} and are therefore never
+inserted into the \abbr{PTT} at all.
+This happens if all the entries a transaction~$T$ inserted have been accessed
+and timestamped before the next batch of updates is applied into the
+\abbr{PTT}\@. 
+In this situation, the transaction entry has already been removed from the
+\abbr{VTT} and is never inserted into the \abbr{PTT}.
+
+With Immortal DB, the focus on optimizing the TBS-tree has moved from
+optimizing space usage into optimizing both space usage and query
+performance \cite{lomet:2009:improving,lomet:2008:version-compression}.  
+The original TBS-tree (see previous section) was designed for data that is
+never deleted~\cite{lomet:1989:tsb}.
+When data deletion is allowed, maintaining the number of live entries for
+each page is more challenging.
+Even though the new Immortal DB splitting policies are better suited for
+transaction histories that also contain deletions, the fact remains that pages
+are not merged, and thus key ranges cannot expand.
+If a current page of the \TSBtree\ covers the key range $[k_1, k_2)$, all
+the items in this range are deleted, and no new items are inserted that fall
+into that range, then the current page will contain no live entries.
+It will still be part of the current-version database, and key-range queries
+will process it (also recall the discussion in
+\secref{sec:mv-index:optimality}). 
+The \TSBtree\ and the Immortal DB are therefore suboptimal multiversion index
+structures, and range-query performance may degrade when deletions are
+present.
+
+
+
+%% Multiversion B-tree
+%%---------------------------------------------------------------------
+\section{Multiversion \Btree}
+\label{sec:tsbmvbt:mvbt}
+\label{def:mvbt}
+
+The first optimal multiversion index structure
+presented was the multiversion \Btree\ (MVBT) of Becker
+et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}.
+The MVBT follows a single-update model, in which each update to
+the index creates a new version of the index.
+The update cannot be rolled back, so the MVBT structure is not transactional.
+
+We can model a single multi-action updating transaction operating on
+the MVBT, if we accept that the transaction cannot roll back. 
+The updates performed by the updating transaction~$T$ obtain versions that
+form a contiguous range $[v_1, v_2]$.
+This means that the intermediate states $v: v_1 < v < v_2$ also
+persist, even though they are never queried as they are internal to the
+transaction. 
+For example, suppose that a transaction~$T$ first inserts a data item
+with key~$k$, and then updates it again and again.
+If the last action of the transaction with commit-time version~$v$ on the
+data item with key~$k$ is an update with value $w$, then an optimal
+multiversion index only records the data item $(k, v, w)$.
+In contrast, the MVBT stores information of uncommitted versions of the data
+item that never will be committed.
+
+There are some benefits to this model, however.
+Concurrency control is straightforward, because only one updating
+transaction is allowed to operate on the index at a time.
+As we will show in \secref{sec:tmvbt:multi-action-tx}, multiple read-only
+transactions can be allowed to operate on the index concurrently with the
+single updating transaction.
+Because there is only a single updating transaction, and every update
+operation creates a new version of the index, the most recent committed
+version can be maintained in a single variable.
+The variable~\comver\ denotes the current version of the MVBT index.
+At the beginning of each action, \comver\ is incremented, and each operation
+on the index is then tagged with the incremented value.
+For correct operation, the read-only transactions may only query the
+latest version after the active updating transaction has committed.
+Therefore the implementation should maintain a separate variable that records
+the latest committed version that precedes the version of the active updating
+transaction. 
+This variable is then read by the read-only transactions, and updated when
+the active updating transaction commits. 
+For simplicity of the explanations, we will assume that \comver\ denotes the
+latest committed version as seen by the updating transaction, and that it is 
+incremented at the beginning of the updating transaction.
+
+As in the \TSBtree, pages of the MVBT cover axis-aligned rectangles of
+key-version space.
+The key-version rectangle of a page~$p$ is unambiguously defined by its
+components: the key range~$\kr{p}$\phantomsection\label{def:kr}, and
+the version range, or life span~$\vr{p}$\phantomsection\label{def:vr}.
+The pages form a directed acyclic graph with leaf pages at level one, and
+index pages on consecutively higher levels\footnote{Becker et~al.\ say that
+leaf pages are at level zero, but as this is just a matter of convention we
+have modified the definition here to better suit the convention used in this
+dissertation.}.
+In the MVBT, life spans are explicitly stored in each entry in the index
+structure.
+Leaf-page entries are thus tuples of the form $(k, \vrmark{v}, w)$, where 
+$k$ is the key, $\vrmark{v} = [v_1, v_2)$ is the life span, and $w$ is the
+associated data stored in the data item.
+When a leaf-page entry is first inserted into the index, its life span is set
+to $\vrmark{v} \leftarrow [\comver, \infty)$, indicating that it has been
+inserted at the current version and that it has not yet been deleted.
+If an entry with a life span $\vrmark{v} = [v_1, \infty)$ is deleted, the
+life span is replaced with $\vrmark{v} \leftarrow [v_1, \comver)$, thus
+marking that the entry was deleted at the current version.
+The life span of a leaf-page entry is therefore not static, but it changes
+when the item is deleted.
+After an item has been deleted (or updated by replacing it with another
+item with a different associated value), the life span of the historical
+entry becomes static.
+
+For each level~$l$ in the MVBT index, the pages of level~$l$ partition the
+key-version space into disjoint rectangles. 
+The pages of level~$l$ cover the entire key-version space, except for
+those ranges of versions~$v$ for which the height of the search tree $S_v$
+was lower than~$l$. 
+An example of this is shown in \figref{fig:mvbt-space-partition}. 
+In the example, the search tree~$S_0$ of version~$v_0$ contains only the
+single leaf-level root page $p_1$, and therefore the MVBT index does not
+contain any pages at the second level before version~$v_1$.
+At version $v_1$, the root page is split into pages~$p_2$ and~$p_3$, and
+therefore a new root page~$p_9$ at the next level is created.
+
+\begin{figure}[htb]
+\begin{center}
+\subfigure[Level 1]{\input{images/mvbt-space-level-1.tex}
+\label{fig:mvbt-space-partition:level-1}}
+\subfigure[Level 2]{\input{images/mvbt-space-level-2.tex}
+\label{fig:mvbt-space-partition:level-2}}
+\figcaption{Partitioning of the key-version space in the MVBT}%
+{In the image, $\comver = v_6$, which is indicated by the open ends of the
+life spans of pages $p_7$, $p_8$, and $p_{10}$.
+The level \num{2} image shows routers to page $p_5$ in pages $p_9$ and
+$p_{10}$.}
+\label{fig:mvbt-space-partition}
+\end{center}
+\end{figure}
+
+The index pages contain pointers, or \emph{routers}, to child
+pages~\cite{becker:1993:optimal,becker:1996:mvbt}.
+A pointer from a parent page~$p$ to a child page~$p'$ is represented by a
+tuple of the form $(\vrmark{k}, \vrmark{v}, p')$, where $p'$ is the
+page identifier of the child page~$p'$.
+The key range~\vrmark{k} and life span~\vrmark{v} form the router
+$(\vrmark{k}, \vrmark{v})$ that guides the search to the child page. 
+The router is set to the intersection of the key ranges and life spans of
+the parent page and the child page.
+This is illustrated in \figref{fig:mvbt-space-partition:level-2}, where the
+routers to the child page~$p_5$ are shown in both parent pages~$p_9$
+and~$p_{10}$.
+For illustration, the page identifiers stored in index pages are prefixed with
+a marker~\ptr. 
+A parent page~$p$ contains routers to each child page~$p'$ such that
+$\kr{p} \cap \kr{p'} \neq \emptymark$ and $\vr{p} \cap \vr{p'} \neq
+\emptymark$, and the format of the MVBT index therefore follows the general
+convention shown in \figref{fig:sv-mv-index-comparison:mv} on
+page~\pageref{fig:sv-mv-index-comparison:mv}.
+
+The structure-modification operations on the MVBT are based on the
+\emph{version-split} operation, in which a live page~$p$ is \emph{killed};
+that is, $p$~is split at the current version~\comver, and a new live
+copy~$p'$ is created. 
+The life span $[v,\infty)$ of the old page~$p$ is cropped to
+$[v,\comver)$, and the life span of the new page~$p'$ is set to
+$[\comver,\infty)$. 
+All the live entries in~$p$ are copied to~$p'$. 
+Page~$p$ is now considered a \textit{dead page} and is only used for
+historical queries, and the new page~$p'$ is used for current-version
+queries.
+This operation is the same for index pages and leaf pages.
+All structure-modification operations target the new page~$p'$, and 
+the killed page~$p$ becomes static.
+Dead pages are never modified again, although they might be deleted
+later to save space (see the discussion of purging old versions in
+the \abbr{MVBT} article by Becker
+et~al.~\cite{becker:1996:mvbt,becker:1993:optimal}). 
+This is stated more formally below.
+
+\thmskip
+\begin{invariant}
+\label{inv:mvbt-static-dead-page}
+Dead pages in the MVBT can only be modified by a purging process that is run
+to remove old versions.
+If an old version is removed, it can no longer be queried.
+From the viewpoint of a user transaction querying for any version, all
+encountered dead pages are static.
+\end{invariant}
+\thmskip
+
+There are two basic structure-modification operations in the MVBT: page split
+and page merge.
+A page split is triggered when an insertion is attempted into a page
+that is full and cannot accommodate the new entry, and a page merge is
+triggered when the number of live entries in a page falls below \minlive.
+To avoid thrashing between splitting and merging the same page, all pages in
+the MVBT must contain between $\minsplit = \minlive +
+s$\phantomsection\label{def:minsplit} and $\maxsplit = \capacity -
+s$\phantomsection\label{def:maxsplit} entries immediately after any
+structure-modification operation, where $s$ is a split-tolerance variable. 
+The variable~$s$ determines how many updates must at least be performed
+on the page before a new structure-modification operation is required.
+
+When a page~$p$ is \emph{split}, it is first version-split into a new live
+page~$p'$.
+As described above, page~$p'$ contains the live entries copied from page~$p$.
+If the number of live entries in page $p'$ is now between \minsplit\ and
+\maxsplit, the operation terminates, because the page can accommodate at
+least~$s$ more updates before it needs to be either split or merged.
+If the number of live entries is above \maxsplit, page~$p'$ is further
+key-split into two pages. 
+The key-split operation is identical to a standard \Btree\ key split.
+This is possible also for index pages, because at this point the
+new page~$p'$ contains only live entries, and thus there are
+no entries with overlapping key ranges.
+If the number of live entries on page~$p'$ is below \minsplit, the page
+must be merged with a sibling page. 
+In this case, a sibling page~$p''$ is located, version-split, and merged with
+the page~$p'$.
+If the merged page contains more than \maxsplit\ entries, it is further
+key-split into two pages, similar to the key-split situation above.
+
+The \emph{page merge} operation, which is triggered when the number of live
+entries on a page~$p$ falls below \minlive, is identical to the merge
+operation that takes place after a version-split.
+That is, page~$p$ is first version-split, then a sibling page~$p'$ is located,
+version-split, and the resulting live pages are merged.
+The merged page might again have more than \maxsplit\ entries, in which case
+it is further key-split into two pages.
+In this situation, the merge operation resembles the key-redistribution
+operation of the \Btree.
+
+% \thmskip
+% \begin{theorem}
+% Each structure-modification operation on the MVBT transforms a structurally
+% consistent and balanced MVBT index into a structurally consistent and balanced
+% index, and all structure-modification operations on the MVBT are
+% deadlock-free.
+% \end{theorem}
+% \thmskip
+% 
+% For a more detailed description of these operations and the proof to the
+% theorem, we refer to the extended algorithms in \secref{sec:tmvbt:smo}.
+ 
+% Invariant: historical entries remain in place
+Because no historical data is removed from the killed page~$p$ in all the
+structure-modification operations, and all the live entries are copied to the
+new page~$p'$, we can deduce an even stronger invariant for the MVBT\@:
+
+\thmskip
+\begin{invariant}
+\label{inv:mvbt-static-entries}
+All entries in the MVBT pages remain in place. 
+They are never moved to another page.
+Only the deletion time of an entry may be changed, always from $\infty$ to
+the current version~\comver.
+\end{invariant}
+\thmskip
+
+% Creation of new root pages to the root*
+When a non-leaf page is version-split, the copying of entries
+creates a new parent, in addition to the old one(s), for the
+child pages pointed to by the copied entries.
+As noted before, the \abbr{MVBT} is not a tree but a directed acyclic
+graph, which may have several roots.
+When a root page is split, a new root page is created, but the old root page
+is still used as a starting point when searching for historical entries.
+To accomplish this, a separate structure called
+\rootstar\ (see \defref{def:rootstar}) is used to store all the different
+roots of the MVBT\@. 
+The \rootstar\ structure can be implemented, for example, as a
+\Btree\ that contains the page identifiers of the different root pages,
+indexed by their creation versions. 
+It is assumed that the number of different roots is small, and that the
+\rootstar\ structure can fully reside in main memory.
+
+The optimality of the MVBT is based on maintaining the following invariant:
+
+\thmskip
+\begin{invariant}
+\label{inv:mvbt-live-count}
+Assuming that each version of the MVBT index consists of only a single
+update, then for all versions~$v$ and all pages~$p$, either
+(1)~page~$p$ contains at least \minlive\ entries that are alive at
+version~$v$, where \minlive\ is a configuration variable that is linearly
+dependent on the page capacity~\capacity; or 
+(2)~page~$p$ is a root page of a search tree~$S_v$ and $p$ contains at least
+two entries that are alive at version~$v$; or 
+(3)~page~$p$ is the single page of a search tree~$S_v$ that has a height of
+one; or
+(4)~page~$p$ is not part of the search tree~$S_v$ and therefore
+contains no entries that are alive at version~$v$.
+\end{invariant}
+\thmskip
+
+The first case of this invariant states that each page either contains enough
+entries of the queried version so that all queries (including the
+key-range query) are efficient, or the page is not part of the search tree of
+the queried version and is therefore not processed at all.
+The two other cases are special cases listed for completeness: a root page may
+contain as few as two live entries, if there are no more pages at the next
+lower level.
+Similarly, if all the $n$ live entries of a version~$v$ fit on a single page,
+the search tree~$S_v$ contains only a single page that has exactly $n$ live
+entries.
+Because this invariant is maintained, each search tree~$S_v$ is
+asymptotically equivalent to a single-version \Btree\ index, and all queries
+in the MVBT index are optimal (see \defref{def:optimal-mv}), if the root
+page of the search tree of the queried version is known.
+
+Like the \TSBtree, the space complexity of the MVBT index is also
+\Oh{n/\capacity} database pages, where $n$ is the number of updates in the
+database history~\cite{salzberg:1999:comparison,becker:1996:mvbt}. 
+The time complexity of the MVBT actions has been shown by Becker
+et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}, and we reproduce the 
+results here:
+
+\thmskip
+\begin{theorem}
+\label{thm:mvbt-cost}
+Assume that every transaction consists of only one update, the transactions
+all run in a serial order and they all commit.
+The cost (see \defref{def:action-cost}) of the current-version single-key
+operations (key query, key insertion, and key deletion) in the MVBT index,
+when the roots of the queried search trees are known, is
+\OhT{\log_\capacity \entries{\comver}} pages,
+the cost of the single-key query operation for version~$v$ is
+\OhT{\log_\capacity \entries{v}} pages,
+and the cost of the key-range query operation for version~$v$ is
+\OhT{\log_\capacity \entries{v} + r/\capacity} pages, where $\entries{v}$
+denotes the number of data items that are alive at version~$v$, $r$ is the
+number of live entries in the queried range and \capacity\ is the page
+capacity.
+\end{theorem} 
+\begin{proof}
+By \invref{inv:mvbt-live-count}, each page of the search tree~$S_v$ of
+version~$v$ in the MVBT contains at least \minlive\ entries of version~$v$,
+except possibly the root page of~$S_v$.
+The MVBT is always balanced, as shown by Becker
+et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}.
+The height of the search tree~$S_v$ is thus \OhT{\log_\capacity \entries{v}},
+because there are $\entries{v}$ entries that are alive at version~$v$, and
+\minlive\ is a linear function of the page capacity~\capacity\@.
+This explains the logarithmic part $\log_\capacity \entries{v}$ of the costs,
+as the search tree must be traversed from the root to the correct leaf node.
+The cost of the range query operation is \OhT{\log_\capacity \entries{v} +
+r/\capacity} by \thmref{thm:btree-range-cost}, because each
+page of the search tree~$S_v$ contains at least \minlive\ entries that are
+alive at version~$v$.
+\end{proof}
+\thmskip
+
+In the discussion above, we have omitted the page accesses required for
+locating the root page of version~$v$, when performing a query that targets a
+version~$v$.
+As mentioned earlier, the MVBT uses a separate \rootstar\ structure to store
+the root page identifiers of different versions.
+In practice, the \rootstar\ is either a table or a single-version \Btree,
+indexed by the version during which the root of the search tree has changed.
+For example, suppose that the \rootstar\ contains the following entries:
+$\{ (v_0, p_1), (v_3, p_5), (v_{20}, p_{14}) \}$.
+Reading from this, versions $[v_0, v_3)$ have page~$p_1$ as
+their root page, versions $[v_3, v_{20})$ use page~$p_5$, and the rest
+of the versions $[v_{20}, \infty)$ use page~$p_{14}$.
+
+Let us now discuss the cost of locating the correct root page for a user
+action.   
+If the \rootstar\ is stored in a \Btree\ index, locating the current page
+requires access to \OhT{\log_\capacity n} pages, where $n$ is the number of
+page identifiers stored in the \rootstar.
+If the \rootstar\ is stored as a table, the correct root page identifier can
+be located by a binary search that accesses \OhT{\log_2 n} table slots,
+requiring access to \OhT{(\log_2 n)/\capacity} pages.
+The number of page identifiers in the \rootstar\ is determined by how often
+the root page of the current version search tree has changed.
+As noted by Becker et~al.~\cite{becker:1996:mvbt}, if the MVBT index has
+been created by a sequence of insertions only, the leftmost path of the
+current version search tree $S_{\comver}$ contains all the root pages of
+the MVBT index, and the number of different roots is therefore $n =
+\log_\capacity m = \log_\capacity \entries{\comver}$, where $m$ is the number
+of data items stored in the entire index structure.
+We therefore expect that the number of different roots will be small in
+practice.
+It is possible, however, that the number of roots is much larger.
+
+The worst-case scenario would be to alternatively insert an entry in one
+version into an originally empty database, and delete it in the next. 
+If the index implementation explicitly stores null root page identifiers $(v,
+\deletemark)$ to the \rootstar\ to denote that the search tree of
+version~$v$ is empty, then the number of roots is directly dependent on the
+number of data items stored in the index ($n = \OhT{m}$), because there must
+then exist a page identifier for each version in the \rootstar. 
+If the implementation reuses the root page identifier of the previous version
+leaf-level root page, then the page identifier in the \rootstar\ does not
+change for each update.  
+The root page must however change after \OhT{\capacity} updates, because the
+single root page can only accommodate that many entries.
+The number of root pages is therefore at least $n = \OhT{m/\capacity}$, which
+is still linearly dependent on the number of versions, assuming that the page
+capacity is a constant.
+In this pathological worst case, locating the correct version
+from the \rootstar\ can have an asymptotic cost that is higher than the cost
+of the operation itself.
+However, the root page does not need to be separately located for each query
+operation.
+
+For updating transactions, and when querying for the most recent version, the
+root page of version~\comver\ is required to begin the search tree
+traversal.
+For efficiency, the MVBT index implementation should cache the page
+identifier of the current-version root page. 
+Because there is only one updating transaction, and read-only transactions
+may not target the version that is being updated, the page identifier can be
+stored in a single variable without using locks to protect its value.
+Therefore, there is no additional cost for performing any update action, or
+any query action that targets the latest version.
+Once the updating transaction completes, creating version~$v$, the root page
+of version~$v$ remains static, and thus all entries representing
+historical versions in the \rootstar\ can be cached.
+Each read-only transaction that targets a version~$v < \comver$
+needs to locate the page identifier of the root page of the search
+tree $S_v$ only once.
+The correct page identifier can also be provided by the context.
+We therefore feel justified in stating that locating the root
+page of the queried version from the \rootstar\ has a negligible effect on
+overall query performance.
+
+% MVBT problem scenario
+We stated earlier on that the MVBT follows a single-update model, so that
+only one update may receive the same version.
+Let us now consider what happens if we try to index more than one update
+with the same version in the MVBT index.
+Consider, for example, simply inserting entries with consecutive keys
+$1,2,3,\ldots,n$ to the MVBT\@.
+The scenario is shown in \figref{fig:mvbt-invalid-split}, with an
+illustrative page capacity of three entries per page.
+The first three entries are inserted to page $p_1$, therefore filling the
+page.
+The insertion of the fourth item leads to an overflow which triggers
+a page split.
+The page split begins with a version-split operation, which in turn causes
+the life span of the old page and its entries to degenerate into an empty
+interval $[1,1)$.
+This page does not hold any relevant information as it is no longer a part of
+any version of the database. 
+The pages created earlier by the same transaction are the cause of this
+problem.
+As it turns out, this problem can be remedied by redesigning the algorithms
+as we will show in \secref{sec:tmvbt:smo}.
+In this problem scenario, the page could be key-split directly, without first
+version-splitting it.
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mvbt-problem}
+  \figcaption{\abbr{MVBT} problem scenario}{Insertion of key~4 causes
+  an invalid split. 
+  The format of the page header is key range, life span; 
+  and the format of the entries is (key, life span, data).}
+  \label{fig:mvbt-invalid-split}
+\end{center}
+\end{figure}
+
+% Version-range queries in the MVBT
+Although we have concentrated on queries with a fixed version 
+(that is, \qtype{$x$/$-$/point} queries, see \secref{sec:mv-data:queries}),
+the MVBT can also be modified so that version-range queries
+(\qtype{$x$/$-$/range} queries) can be performed efficiently on the index
+structure.
+The modifications are explained by van~den~Bercken and
+Seeger~\cite{bercken:1996:multiversion}.
+In practice, page identifiers of temporal predecessor pages are added
+to each page. 
+A page~$p'$ is a said to be the \emph{temporal predecessor} of page~$p$ if
+the live entries of~$p'$ were copied to~$p$ during a
+version-split operation; that is, if the key ranges of $p$
+and $p'$ overlap and the deletion time of~$p'$ is the creation time of $p$.
+ 
+When the page identifiers of temporal predecessor are maintained,   
+queries that target ranges of versions can be processed as follows.
+First, the pages that cover the last version of the queried version range 
+are located. 
+The preceding versions on the range can then be located by using the
+page identifiers of temporal predecessors.
+It is sufficient to allocate space for at most two page identifiers in
+each page, because each page of the MVBT index can have at most two temporal
+predecessors. 
+This can be verified by enumerating all the possible
+structure-modification operations.
+For more details, refer to the article by
+van~den~Bercken and Seeger~\cite{bercken:1996:multiversion}.
+
+% Conclusion
+In conclusion, the MVBT structure is an optimal
+multiversion index structure, if the root page of the searched version is
+assumed to be known (and in practice it can be located with negligible cost),
+but it has three shortcomings: the updates created by multi-action
+transactions cannot be assigned the same version number, only a single
+updating transaction can operate on the index at a time, and the transaction
+cannot be rolled back.
+In the next chapter, we present a redesign of the MVBT algorithms that
+allows multiple updates to be performed within the same transaction, so that
+each update is assigned the same version, and the transaction can be rolled
+back.
+
+
+
+%% Multiversion Access Structure
+%%---------------------------------------------------------------------
+\section{Multiversion Access Structure}
+\label{sec:tsbmvbt:mvas}
+
+Varman and Verma have also described a multiversion index structure that is
+optimal according to their definition.
+Their structure is called the \emph{multiversion access structure}
+(MVAS~\cite{varman:1997:multiversion}\label{def:mvas}), and its structure
+is similar to the structure of the MVBT\@.
+The optimality definition of Varman and Verma is less restrictive than our
+definition (\defref{def:optimal-mv}), and therefore we cannot consider the MVAS
+to be optimal.
+To distinguish the optimality concepts, let us define the optimality of the
+MVAS separately.
+According to Varman and Verma, an optimal multiversion
+structure has a cost of \Oh{\log_\capacity m} MVAS pages to locate a queried
+key~$k$ in a given version~$v$, where $m$ is the total number of updates in the
+database history (or, equivalently, the total number of unique data item
+entries in the index).
+We will call this \emph{$m$-optimality}; that is, we say that the MVAS is
+\emph{$m$-optimal}.
+This is in contrast to our required cost of \Oh{\log_\capacity \entries{v}}
+index structure pages, where \entries{v} denotes the number of data items alive
+at version~$v$.
+
+With this altered definition, the MVAS is $m$-optimal for the query types we
+require of multiversion indexes (that is, queries of the
+type \qtype{$x$/$-$/point}; see Sections~\ref{sec:mv-data:queries}
+and~\ref{sec:mv-data:mv-data}), and also for single-key and snapshot
+version-range queries (i.e., \qtype{$x$/$-$/range} queries, where $x$ is either
+\qtype{point} or~$*$).
+Version-range queries for key-ranges (e.g., queries of the type ``retrieve
+all data items with keys in the range $[k_1, k_2)$ that were alive between
+the versions $v_1$ and $v_2$'') are however not $m$-optimal.
+
+The structure of the MVAS is close to that of the MVBT, with the
+following notable exceptions: 
+(1)~the key-range of a page can be altered for later versions, 
+(2)~there is no \rootstar\ structure, 
+(3)~leaf pages are linked together in page creation order, and
+(4)~the index incorporates an access list structure to facilitate
+version-range queries. 
+These differences will be discussed in more detail below.
+In other respects, the MVAS shares the shortcomings of the MVBT: the
+version of the index structure must change after each update, and the
+structure cannot by updated concurrently by multiple transactions.
+
+% Key-ranges can be altered and pages reused
+As described in the previous section, when a structure-modification operation
+is triggered in the MVBT on page~$p$, all the involved pages are 
+version-split before the entries are distributed into new pages.
+If necessary, a sibling page~$p'$ is located, version-split, and the entries
+are redistributed between the two new pages.
+The sibling page~$p'$ might still have usable space left, however.
+Instead of always creating a copy of the sibling page~$p'$, the MVAS reuses
+the physical page~$p'$, and simply inserts a new router to the parent.
+The MVAS is thus a multigraph with possibly more than one edge between its
+nodes.
+The searches for previous versions use the historical router in the index
+page, and the searches for newer versions use the new router.
+This means that the key ranges of pages can change, and the regions of
+key-version space that the MVAS pages cover are not rectangles.
+While this method does use the space more efficiently, the asymptotic space
+cost remains unchanged~\cite{varman:1997:multiversion}, and the index
+structure is a bit more complicated.
+Nevertheless, a space-optimization scheme such as this may give some
+practical benefits, and it could be applied to the MVBT also, if the
+structural invariants were updated.
+
+% No rootstar, traversal costs logarithmic in the number of updates
+The MVAS does not have a separate \rootstar\ structure to track the roots of
+different versions, but rather uses a single root page like the \TSBtree.
+The search tree height is thus the same for each version, and the
+root-to-leaf path length cannot become shorter even if entries are deleted
+from the current version.
+The MVAS does track the single root for the current version separately, so
+that updates and queries that target the current version have the
+asymptotically lower cost of \OhT{\log_\capacity \entries{v}} pages.
+
+% Leaf pages linked together
+To facilitate snapshot queries of different versions (i.e., queries that
+fetch all the entries that are alive at a given version), the MVAS has sibling
+links between leaf pages.
+The pages are linked to each other in the order of their creation time, so
+that a leaf page~$p$ has a link to the leaf page~$p'$ if $p'$~is the
+next leaf page that is created after $p$~was created.
+Varman and Verma do not explicitly define how these links are maintained, but
+we assume that the page identifier of the latest leaf page that has been
+created is maintained, and used to locate the page~$p$ that needs to be
+updated when a new page~$p'$ is created.
+This adds some complexity to concurrency control and deadlock avoidance when
+a latching protocol is used to protect the integrity of database pages.
+
+The leaf-page links are used to efficiently locate all entries that are alive
+between any two specified versions~$v_1$ and $v_2$ such that $v_1 < v_2$.
+The snapshot version-range query (\qtype{$*$/$-$/range}) is composed of two
+subqueries: first, the entire set of entries alive at version $v_1$ is
+queried.
+This query is an $m$-optimal range query, similar to the key-range query
+in the MVBT index. 
+After that, the leaf-page sibling links are followed, starting from the
+most recently created leaf page that was encountered during the first
+subquery.
+Because the leaf pages are linked in increasing creation order, all entries
+that have been created between versions $v_1$ and $v_2$ must be located in
+the leaf pages that were created before $v_2$; or in the pages that were
+alive at version $v_1$, and thus were processed during the first subquery.
+This method is thus an efficient way of locating all the entries that were
+alive between the two given versions.
+
+% Access lists
+Finally, the MVAS contains a separate index structure called \emph{access
+list} that is used to efficiently locate all the data items with key~$k$
+that were alive between two versions~$v_1$ and~$v_2$.
+The access list is a separate index structure that resembles the versioned
+\Btree\ of \secref{sec:mv-index:btree}; that is, the entries are ordered
+first by the keys, and then by their versions, in reverse version
+order.
+The different versions of each key are thus clustered close to each other. 
+Because there is now a total ordering between the entries in the access list,
+the leaf pages of the structure can be linked together, as is often done in
+\Btree{}s.
+The problem of finding all the data items with key~$k$ that were alive
+between two versions now reduces to finding the correct version of the entry
+with key~$k$ from the access list and then traversing the sibling links to
+locate all the versions between the queried range.
+If the correct starting point can be found, this operation is $m$-optimal.
+For this purpose, the entries of the MVAS and the entries of the access list
+are linked together with two-way links.
+
+When querying for the history of a key~$k$ between versions~$v_1$ and~$v_2$,
+the MVAS index is used to locate the entry that is alive at version~$v_2$.
+The search then follows the link in this entry to the access list, and
+traverses the access list by the sibling links to locate all the versions of
+the entry between~$v_1$ and~$v_2$.
+However, an entry that was alive during or after version~$v_1$ might have been
+deleted before version~$v_2$, so that the MVAS search will not find any entry
+and thus does not find a pointer to the access list. 
+This entry is still alive at a version $v : v_1 \leq v < v_2$, so it should
+be included in the result set of the query operation.
+In this case, the \Btree\ index of the access list is used to locate the
+first entry in the queried history.
+The two-way links between the MVAS and the access list are needed because
+leaf pages in both structures may be split and the entries may thus be moved
+around. 
+The links then need to be followed to update the references in the other
+structure.
+There is also an extra level of indirection in the MVAS, because an entry may
+be copied to multiple pages due to a version-split operation that creates
+copies of entries with life spans that cross the split boundary.
+Only the first entry in the MVAS contains a link to the access list, and the
+successive copies of the entry contain links to the first entry.
+When the address of an access list entry changes, it is then sufficient only
+to change the address in the first MVAS entry.
+
+There is, however, yet another complication due to the access list.
+When entries are added to the access list, some nearby pointer from the MVAS
+is followed to locate the correct page of the access list to insert the
+corresponding entry there.
+This is done so that it is not required to traverse the \Btree\ index to
+locate the correct page.
+Recall that the MVAS separately tracks the root page of the current version,
+so that update actions have the optimal cost of \OhT{\log_\capacity
+\entries{v}} pages.
+The access list size is, however, dependent on the total number of updates
+performed in the history, $m$, and traversing the \Btree\ index of the access
+list thus requires \OhT{\log_\capacity m} pages. 
+This additional cost would increase the cost of the update operations above
+the asymptotically optimal cost.
+The pages of the access list therefore have two-way links between parent
+pages and child pages, so that leaf pages can be split without having first
+searched the path from the root to the leaf page.
+This means that whenever an index page of the access list is split, each child
+page whose pointer is moved to the new page needs to be updated.
+In addition to being costly because there are \OhT{\capacity} pages to update,
+the approach is also problematic for concurrency control, because the pages
+all need to be latched at the same time.
+Varman and Verma show that the amortized complexity of this operation is
+constant, because it can only occur after enough other operations have been
+performed~\cite{varman:1997:multiversion}, and the approach thus retains the
+amortized asymptotic optimality of the update actions.
+Like the \TSBtree\ and MVBT, the space complexity of the MVAS (including the
+access list structure) is \Oh{n/\capacity} database
+pages, where $n$ is the number of updates in the database
+history~\cite{varman:1997:multiversion}.
+
+As a conclusion, the MVAS is a structure that is closely related to the
+MVBT index. 
+Similarly to the MVBT, transaction rollback and recovery cannot be optimally
+performed on the MVAS\@.
+There are several differences in the structures, but all the features of the
+MVAS could be implemented on the MVBT as well.
+The access list structure, while preserving the asymptotic behaviour of
+the algorithms, incurs a constant overhead to the update operations and
+an occasional high cost when an index page is split and half its
+child pages need to be updated.
+In addition to taking much time, the index-page-split operation has to latch
+many pages at the same time, thus reducing the concurrency of the structure.

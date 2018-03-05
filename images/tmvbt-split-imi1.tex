@@ -1,0 +1,31 @@
+\begin{tikzpicture}[x=\tmvbtsmox,y=\tmvbtsmoy]
+  \input{images/tmvbt-smo-bg.tex}
+
+  \node[anchor=base] at ($(lo) + (1.5, 1.8)$) {$p$};
+  \node[anchor=base] at ($(lo) + (1.5, 0.3)$) {$s$};
+
+  \draw (lo) -- (hi);
+  \draw (lo) -- (loinf);
+  \draw (hi) -- (hiinf);
+  \draw ($(lo) + (0,1)$) -- ($(loinf) + (0,1)$);
+  \draw[opendash] decorate [opendeco] { (loinf) -- ($(loinf) + (0,1)$) };
+  \draw[opendash] decorate [opendeco] { ($(loinf) + (0,1)$) -- (hiinf) };
+
+\end{tikzpicture}
+\raisebox{1.25\tmvbtsmoy}{$\rightarrow$}
+\begin{tikzpicture}[x=\tmvbtsmox,y=\tmvbtsmoy]
+  \input{images/tmvbt-smo-bg.tex}
+
+  \node[anchor=base] at ($(lo) + (1, 1.8)$) {$p$};
+  \node[anchor=base] at ($(lo) + (1, 0.3)$) {$s$};
+
+  \node[anchor=base] at ($(loact) + (0.5, 1.3)$) {$p'$};
+
+  \draw (lo) -- (hi);
+  \draw (lo) -- (loinf);
+  \draw (hi) -- (hiinf);
+  \draw ($(o) + (0,1)$) -- ($(loact) + (0,1)$);
+  \draw (hiact) -- (loact);
+  \draw[opendash] decorate [opendeco] { (loinf) -- (hiinf) };
+
+\end{tikzpicture}

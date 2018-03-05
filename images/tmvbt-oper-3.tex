@@ -1,0 +1,32 @@
+\begin{tikzpicture}[x=0.13em,y=-0.058em]
+\node[treepage,dead] (p6) at (29,5) {%
+\treeindexpagecontents{6.5}{$[\!-\infty,\!\infty\!),[1,\!2)$}%
+  {%%
+   $([\!-\infty,\!4),[1,\!2),p_{3})$\\
+   $([4,\!\infty\!),[1,\!2),p_{5})$}};
+\treepageheader{p6}{$p_{6}$};
+\node[treepage,dead] (p3) at (5,146) {%
+\treepagecontents{6.5}{$[\!-\infty,\!4),[1,\!2)$}%
+  {%%
+   $(1,[1,\!2))$\\
+   $(2,[1,\!2))$\\
+   $(3,[1,\!2))$}};
+\treepageheader{p3}{$p_{3}$};
+\node[treepage,dead] (p5) at (53,146) {%
+\treepagecontents{6.5}{$[4,\!\infty\!),[1,\!2)$}%
+  {%%
+   $(4,[1,\!2))$\\
+   $(5,[1,\!2))$\\
+   $(6,[1,\!2))$}};
+\treepageheader{p5}{$p_{5}$};
+\node[treepage] (p8) at (101,146) {%
+\treepagecontents{6.5}{$[\!-\infty,\!\infty\!),[2,\!\infty\!)$}%
+  {%%
+   $(1,[2,\!\infty\!))$\\
+   $(2,[2,\!\infty\!))$\\
+   $(3,[2,\!\infty\!))$}};
+\treepageheader{p8}{$p_{8}$};
+\draw[parentlink] (p6.south) -- ($(p3header.north) + (0,-2)$);
+\draw[parentlink] (p6.south) -- ($(p5header.north) + (0,-2)$);
+
+\end{tikzpicture}

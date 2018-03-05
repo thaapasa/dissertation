@@ -1,0 +1,67 @@
+\begin{tikzpicture}[x=0.108em,y=-0.058em]
+\node[treepage,dead] (p6) at (53,5) {%
+\treeindexpagecontents{6.5}{$[\!-\infty,\!\infty\!),[1,\!2)$}%
+  {%%
+   $([\!-\infty,\!4),[1,\!2),p_{3})$\\
+   $([4,\!7),[1,\!2),p_{5})$\\
+   $([7,\!\infty\!),[1,\!2),p_{7})$}};
+\treepageheader{p6}{$p_{6}$};
+\node[treepage] (p3) at (5,146) {%
+\treepagecontents{6.5}{$[\!-\infty,\!4),[1,\!\infty\!)$}%
+  {%%
+   $(1,[1,\!\infty\!))$\\
+   $(2,[1,\!\infty\!))$\\
+   $(3,[1,\!\infty\!))$}};
+\treepageheader{p3}{$p_{3}$};
+\node[treepage,dead] (p5) at (53,146) {%
+\treepagecontents{6.5}{$[4,\!7),[1,\!2)$}%
+  {%%
+   $(4,[1,\!2))$\\
+   $(5,[1,\!2))$\\
+   $(6,[1,\!2))$}};
+\treepageheader{p5}{$p_{5}$};
+\node[treepage,dead] (p7) at (101,146) {%
+\treepagecontents{6.5}{$[7,\!\infty\!),[1,\!2)$}%
+  {%%
+   $(7,[1,\!2))$\\
+   $(8,[1,\!2))$\\
+   $(9,[1,\!2))$}};
+\treepageheader{p7}{$p_{7}$};
+\node[treepage] (p10) at (125,5) {%
+\treeindexpagecontents{6.5}{$[\!-\infty,\!\infty\!),[2,\!\infty\!)$}%
+  {%%
+   $([\!-\infty,\!4),[2,\!\infty\!),p_{3})$\\
+   $([4,\!10),[2,\!\infty\!),p_{8})$\\
+   $([10,\!13),[2,\!\infty\!),p_{9})$\\
+   $([13,\!\infty\!),[2,\!\infty\!),p_{11})$}};
+\treepageheader{p10}{$p_{10}$};
+\node[treepage] (p8) at (149,146) {%
+\treepagecontents{6.5}{$[4,\!10),[2,\!\infty\!)$}%
+  {%%
+   $(4,[2,\!\infty\!))$\\
+   $(5,[2,\!\infty\!))$\\
+   $(6,[2,\!\infty\!))$}};
+\treepageheader{p8}{$p_{8}$};
+\node[treepage] (p9) at (197,146) {%
+\treepagecontents{6.5}{$[10,\!13),[2,\!\infty\!)$}%
+  {%%
+   $(10,[2,\!\infty\!))$\\
+   $(11,[2,\!\infty\!))$\\
+   $(12,[2,\!\infty\!))$}};
+\treepageheader{p9}{$p_{9}$};
+\node[treepage] (p11) at (245,146) {%
+\treepagecontents{6.5}{$[13,\!\infty\!),[2,\!\infty\!)$}%
+  {%%
+   $(13,[2,\!\infty\!))$\\
+   $(14,[2,\!\infty\!))$\\
+   $(15,[2,\!\infty\!))$}};
+\treepageheader{p11}{$p_{11}$};
+\draw[parentlink] (p6.south) -- ($(p3header.north) + (0,-2)$);
+\draw[parentlink] (p6.south) -- ($(p5header.north) + (0,-2)$);
+\draw[parentlink] (p6.south) -- ($(p7header.north) + (0,-2)$);
+\draw[parentlink] (p10.south) -- ($(p3header.north) + (0,-2)$);
+\draw[parentlink] (p10.south) -- ($(p8header.north) + (0,-2)$);
+\draw[parentlink] (p10.south) -- ($(p9header.north) + (0,-2)$);
+\draw[parentlink] (p10.south) -- ($(p11header.north) + (0,-2)$);
+
+\end{tikzpicture}

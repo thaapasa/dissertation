@@ -1,0 +1,36 @@
+\begin{tikzpicture}[x=2em,y=2em,every node/.style={font=\small}]
+  \small
+  \coordinate (o) at (0,0);
+  \coordinate (ok) at ($(o) + (0,5)$);
+  \coordinate (ov) at ($(o) + (3,0)$);
+  \coordinate (v0) at (o); 
+  \coordinate[label=below:{\actverp}] (v1) at ($(o) + (1,0)$); 
+
+  \draw (1,0) -- (1,4.5);
+%  \draw (1,1) -- (2,1);
+%  \draw (1,3) -- (2,3);
+
+  \draw[opendash] decorate [opendeco] { (1,4.5) -- (2,4.5) };
+
+  \draw[opendash] decorate [opendeco] { (2,0) -- (2,1) };
+  \draw[opendash] decorate [opendeco] { (2,1) -- (2,3) };
+  \draw[opendash] decorate [opendeco] { (2,3) -- (2,4.5) };
+
+  \draw[dashed] { (1.1,0.1) -- (2,0.1) };
+  \draw[dashed] { (1.1,0.1) -- (1.1,0.95) };
+  \draw[dashed] { (1.1,0.95) -- (2,0.95) };
+
+  \draw[dashed] { (1.1,1.05) -- (2,1.05) };
+  \draw[dashed] { (1.1,1.05) -- (1.1,2.95) };
+  \draw[dashed] { (1.1,2.95) -- (2,2.95) };
+
+  \draw[dashed] { (1.1,3.05) -- (2,3.05) };
+  \draw[dashed] { (1.1,3.05) -- (1.1,4.5) };
+
+  \node at (1.55,0.5) {$\ptr p_1$};
+  \node at (1.55,2) {$\ptr p_2$};
+  \node at (1.55,3.75) {$\ptr p_3$};
+
+  \draw[->] (o) -- node[below=1em,lbl] {Versions} (ov);
+  \draw[->] (o) -- node[above,sloped,lbl] {Keys} (ok);
+\end{tikzpicture}

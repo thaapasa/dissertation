@@ -1,0 +1,74 @@
+% Notes
+% \pgfpointanchor references by object name, not shape name (doh)
+% so it cannot be used in object construction
+
+\makeatletter
+\pgfdeclareshape{rounded rectangle open top}{
+\inheritsavedanchors[from=rectangle]%
+\savedanchor{\corners}{\pgfpoint{\pgfshapeinnerxsep}{\pgfshapeinnerysep}}%
+\inheritanchorborder[from=rectangle]%
+\inheritanchor[from=rectangle]{center}%
+\inheritanchor[from=rectangle]{north}%
+\inheritanchor[from=rectangle]{south}%
+\inheritanchor[from=rectangle]{west}%
+\inheritanchor[from=rectangle]{east}%
+\inheritanchor[from=rectangle]{south east}%
+\inheritanchor[from=rectangle]{south west}%
+\inheritanchor[from=rectangle]{north east}%
+\inheritanchor[from=rectangle]{north west}%
+\backgroundpath{
+  \southwest \pgf@xa=\pgf@x \pgf@ya=\pgf@y
+  \northeast \pgf@xb=\pgf@x \pgf@yb=\pgf@y
+  \corners \pgf@xc=\pgf@x \pgf@yc=\pgf@y
+
+  \pgf@x=\pgf@xb \advance \pgf@x by -\pgf@xc 
+  \pgf@y=\pgf@yb 
+  \pgfpathmoveto{}
+  % NE corner
+  \pgfpatharc{90}{0}{\pgf@xc and \pgf@yc}
+
+  % East side
+  \pgf@x=\pgf@xb  
+  \pgf@y=\pgf@ya \advance \pgf@y by \pgf@yc
+  \pgfpathlineto{}
+
+  % SE corner
+  \pgfpatharc{0}{-90}{\pgf@xc and \pgf@yc}
+
+  % South side
+  \pgf@x=\pgf@xa \advance \pgf@x by \pgf@xc  
+  \pgf@y=\pgf@ya 
+  \pgfpathlineto{}
+
+  % SW corner
+  \pgfpatharc{270}{180}{\pgf@xc and \pgf@yc}
+
+  % West side
+  \pgf@x=\pgf@xa   
+  \pgf@y=\pgf@yb \advance \pgf@y by -\pgf@yc
+  \pgfpathlineto{}
+
+  % NW corner
+  \pgfpatharc{180}{90}{\pgf@xc and \pgf@yc}
+
+  % Center X
+  \pgf@x=.5\pgf@xa
+  \advance\pgf@x by .5\pgf@xb
+  \advance\pgf@x by -3\pgf@xc
+  \pgf@y=\pgf@yb
+  \pgfpathlineto{} 
+
+  \pgf@x=.5\pgf@xa
+  \advance\pgf@x by .5\pgf@xb
+  \advance\pgf@x by 3\pgf@xc
+  \pgf@y=\pgf@yb
+  \pgfpathmoveto{} 
+
+  \northeast
+  \advance \pgf@x by -\pgf@xc
+  \pgfpathlineto{}  
+
+  \pgfpathclose
+}
+}
+\makeatother

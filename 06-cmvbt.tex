@@ -1,0 +1,1416 @@
+%%=====================================================================
+%% Concurrent Updating of the MVBT
+%%=====================================================================
+\chapter{Concurrent Updating of the MVBT}
+\label{chapter:cmvbt}
+\label{def:cmvbt}
+
+The optimal TMVBT index that was presented in the previous
+chapter can only be used by at most one updating transaction at a time, but
+the transaction may operate concurrently with many read-only transactions.
+We now describe the concurrent multiversion \Btree\ (CMVBT) index, which uses
+a TMVBT index for storing the updates of committed transactions, and a
+separate main-memory-resident versioned \Btree\ (VBT) index
+%(see \secref{sec:mv-index:btree}) 
+for storing the updates of active (and recently committed) transactions.
+With this organization, multiple updating transactions can operate on the
+structure concurrently. 
+A system maintenance transaction is run periodically to apply the updates of
+committed transactions into the TMVBT index, thus keeping the VBT index
+small.
+The discussion in this chapter is based on the design ideas presented in our
+previous article~\cite{haapasalo:2009:cmvbt}.
+The chapter begins with an overview of the concurrent index organization in
+\secref{sec:cmvbt:organization}.
+After that, \secref{sec:cmvbt:concurrency} describes the general principles
+on how concurrency control and recovery are managed on the index.
+\secref{sec:cmvbt:user-actions} shows how the user actions are implemented,
+and \secref{sec:cmvbt:maintenance-tx} describes the maintenance transaction.
+Finally, in \secref{sec:cmvbt:summary}, we present a summary of the CMVBT
+structure.
+
+
+%% Concurrent Index Organization
+%%---------------------------------------------------------------------
+\section{Concurrent Index Organization}
+\label{sec:cmvbt:organization}
+
+As discussed in the previous chapter, we believe that the TMVBT index
+cannot be further extended so as to be updatable by multiple concurrent
+updating transactions, without compromising the optimality of the structure
+(specifically \invref{inv:tmvbt-live-count}).
+The concurrent index structure we propose is therefore based on the idea of
+collecting all the updates of active transactions and applying them to the
+TMVBT index as a batch update, after the transactions have committed.
+Batch updates have been previously used to enhance the performance of \Btree\
+indexes~\cite{pollari-malmi:1996:batch-updates,pollari-malmi:2000:differential-index}
+and also to create indexes on large existing data sets while simultaneously
+allowing concurrent updating transactions to modify the data
+set~\cite{mohan:1992:side-file}.
+In both of these cases, a separate structure is used to record the updates of
+active transactions. 
+The updates are then applied to the main index structure later, after the
+transactions have committed (for the former case) or after the index has been
+created (for the latter case).
+
+% A similar approach, called \emph{differential indexes}, is employed
+% by Pollari-Malmi et~al.~\cite{pollari-malmi:2000:differential-index}
+% to group updates falling into the same leaf page and to simplify the
+% recovery algorithms.
+% Mohan and Narang also use temporary indexes called \emph{side
+% files}~\cite{mohan:1992:side-file} to allow online index construction
+% while the data is being queried and updated.
+% Differential indexes were first introduced by Lang
+% et~al.~\cite{lang:1986:differential}.
+
+Our \emph{concurrent multiversion \Btree}, or CMVBT, is a multiversion index
+structure that is composed of two parts: a main-memory-resident versioned
+\Btree\ index (VBT, as defined in \secref{sec:mv-index:btree}) that is used
+as a temporary storage for the pending updates created by active
+transactions, and a transactional multiversion \Btree\ index (TMVBT, as
+described in the previous chapter) that is used as a final, stable storage in
+which all the committed multiversion data items are eventually stored. 
+We assume that the VBT index has sibling pointers at each level pointing to
+the next page at the same level, like in a
+\Blinktree~\cite{lehman:1981:b-link-tree}.
+These pointers will be used to accelerate key-range scans in the VBT index. 
+The transactions operating on the CMVBT index follow the transaction model
+presented in Sections~\ref{sec:mv-data:read-only-tx} (for read-only
+transactions) and~\ref{sec:mv-data:updating-tx} (for updating transactions).
+For user transactions, the TMVBT index is a read-only structure. 
+The TMVBT is only updated by a system \emph{maintenance transaction}, which
+is run periodically to apply the updates of committed transactions from the
+VBT index into the main TMVBT index, and to delete the pending updates from
+the VBT\@.
+This setup is illustrated in \figref{fig:cmvbt-setup}.
+We assume that only a single instance of the maintenance transaction is running
+at a time; for discussion on multithreading the maintenance transaction, see
+the discussion at the end of \secref{sec:cmvbt:maintenance-tx}.
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/cmvbt-setup}\\
+  \figcaption{The CMVBT index structure organization}
+  {User transactions issue queries both to the VBT and the
+  TMVBT indexes, but updates are performed only on the VBT\@.
+  A system maintenance transaction is run periodically to apply the
+  pending updates of committed transactions into the TMVBT index and to
+  delete them from the VBT\@.}
+  \label{fig:cmvbt-setup}
+\end{center}
+\end{figure}
+
+We expect that the VBT index will remain small under typical database
+workloads, as the maintenance transaction is run periodically to apply
+the updates to the TMVBT and delete them from the VBT\@.
+For efficiency, we thus reserve a portion of the page buffer specifically for
+the VBT index. 
+This way the entire VBT index can be kept in main memory during normal
+transaction processing.
+In all of our tests, the VBT size was between \num{0} and \num{20} pages,
+with a typical size of just a few pages (see \secref{sec:performance:general}, 
+page \pageref{test:vbt-size}).
+
+Like the TMVBT, the CMVBT maintains a variable \comver\ that records the
+version of the latest committed transaction.
+In the CMVBT index, the updates are performed by inserting pending updates
+(see \defref{def:pending-update}) to the VBT index.
+The pending updates are then later on applied to the TMVBT index and deleted
+from the VBT\@.
+If there is a large number of concurrent updating transactions that commit at
+around the same time, the TMVBT index will ``lag behind'' until the
+maintenance transaction has had time to apply the pending updates into the
+TMVBT\@. 
+Therefore, in the context of the CMVBT index, the \comver\ variable
+does not tell the maximum committed version of the TMVBT index.
+Accordingly, the CMVBT maintains a separate variable \stablever\ that tells
+which commit-time versions are already reflected in the TMVBT index. 
+In other words, for each version $v \leq \stablever$, all the updates
+of a transaction $T$ with $\commitver{T} = v$ have been applied to
+the TMVBT index.
+
+\thmskip 
+\begin{definition}
+\label{def:stablever}
+In the CMVBT index, the variable \comver\ tells the version of the latest
+committed transaction.
+A separate variable $\stablever \leq \comver$ tells the
+commit-time version of the latest transaction whose updates have been applied
+to the TMVBT index.
+The commit-time versions $v \leq \stablever$ are called \emph{stable
+versions}, and the transactions that created the versions are called
+\emph{stable transactions}.
+All the updates of stable transactions have been applied to the TMVBT index
+by the maintenance transaction.
+The commit-time versions $v > \stablever$ are called \emph{transient
+versions}, and the corresponding transactions \emph{transient transactions}.
+All the updates of transient transactions are located in the VBT index.
+\end{definition}
+\thmskip 
+
+By this definition, an active updating transaction is always transient,
+while a committed transaction can be either transient or stable.
+An example of the commit-time versions and transaction identifiers used in
+a CMVBT database is given in \figref{fig:cmvbt-example}\@.
+The example shows a database with five committed transactions
+(versions~\range{1}{5}), and two active, uncommitted transactions (with
+temporary identifiers~\num{102} and~\num{104}).
+Three out of the five committed transactions are stable, namely the
+transactions with commit-time versions~\range{1}{3}, and 
+the transaction identifiers~\num{103} and~\num{101} correspond to
+transient committed versions \num{4} and \num{5}, respectively. 
+The CTI table present in the figure is explained in the following
+paragraphs.
+
+\begin{figure}[htb]
+\begin{center}
+%  \includegraphics[width=0.4\textwidth]{images/cmvbt-example}\\
+  \input{images/cmvbt-example}\\
+  \figcaption{Example of the logical contents of a CMVBT index}
+  {The database contains the updates of five committed versions, versions
+  \range{1}{5}. 
+  The TMVBT index contains all the updates of stable versions
+  \range{1}{3}, and the updates of committed transient versions \range{4}{5}
+  are still located in the VBT index, identified with transaction
+  identifiers \num{103} and~\num{101}.
+  The VBT additionally contains updates by two active updating transactions
+  that have transaction identifiers \num{102} and~\num{104}.}
+  \label{fig:cmvbt-example}
+\end{center}
+\end{figure}
+
+As explained in the transaction model for updating transactions in
+\secref{sec:mv-data:updating-tx}, we assign a transaction identifier
+called \txid{T} for each new transaction~$T$\@.
+The updates of the transaction~$T$ are stored into the VBT index using
+transaction identifiers in the VBT entries (identifiers
+\range{101}{104} in the example situation of \figref{fig:cmvbt-example}). 
+The commit-time versions \commitver{T} of committed transactions define
+the ordering of the transactions (versions \range{1}{5} in the example). 
+When the updates of a committed transaction~$T$ are applied to the TMVBT
+index, the commit-time version is known, and will be used in the TMVBT index.
+The TMVBT thus stores commit-time versions exclusively, and the VBT
+index stores only transaction identifiers.
+The transaction identifiers are internal to the database system, and not
+visible to the users.
+The users only see the commit-time versions when issuing historical
+queries to the database.
+Both of these versions can be based either on the real time, or on
+an increasing counter value, as long as they are unique and increasing. 
+In the following discussion, we assume that the versions are based on
+an increasing counter value.
+
+Because the transaction identifiers and the actual, commit-time
+versions of the transactions may differ, a mapping from commit-time
+versions to the transaction identifiers is maintained in an in-memory
+hash-table called the \emph{commit-time-to-identifier} table, or
+CTI\phantomsection\label{def:cti} table. 
+In the example of \figref{fig:cmvbt-example}, the updates of committed
+transactions with commit-time versions \num{4} and \num{5} are still
+located in the VBT index with transaction identifiers \num{103} and
+\num{101}. 
+A mapping $v_c \to v_i$, for a committed transaction~$T$ with
+$\commitver{T} = v_c$ and $\txid{T} = v_i$, is removed from the
+CTI table once the maintenance transaction has applied all the committed
+updates of~$T$ into the TMVBT, deleted the pending updates from
+the VBT, and committed.
+The CTI table does not need to be backed onto disk. 
+If the system fails, the CTI table can be reconstructed from the
+log file contents during the analysis pass of the \abbr{ARIES} restart
+recovery~\cite{mohan:1992:aries}.
+ 
+\thmskip
+\begin{definition}
+\label{def:movever}
+When the maintenance transaction is running, it applies the updates of
+a single version called the \emph{move version}~\movever\ into the TMVBT\@.
+The move version is always the earliest transient committed version.
+\end{definition}
+\thmskip
+
+\thmskip
+\begin{invariant}
+In our numbering convention, $\movever = \stablever + 1$ whenever
+the maintenance transaction is running.
+The updates of the transaction with $\commitver{T} = \movever$ can be located
+in both the VBT and the TMVBT indexes during the execution of the maintenance
+transaction.
+If the maintenance transaction is not running, $\movever = \stablever$.
+\end{invariant}
+\thmskip
+
+When the maintenance transaction is running, the user transactions
+still use the stable version variable~\stablever\ to direct the
+search for the correct versions of data items.
+In the example of \figref{fig:cmvbt-example}, the maintenance
+transaction could be moving the updates of transaction~$T$ with
+$\commitver{T} = 4$ from the VBT to the TMVBT\@. 
+
+When multiple active transactions perform updates on the same data item, 
+all the different updates are stored in the VBT, ordered by the transaction
+identifiers of the transactions that created them.
+We assume that the convention presented in \secref{sec:mv-index:btree} is
+used; that is, the result of a write action by a transaction~$T$ with
+$\txid{T} = v_i$ is represented by a tuple $(k, v_i, w)$ in the VBT index, and
+the result of a delete action is represented by a tuple $(k, v_i,
+\deletemark)$.
+When updating transactions commit, the pending updates remain in the
+VBT until the maintenance transaction deletes them after applying the updates
+to the TMVBT index.
+
+Because the ordering of the committed transactions may differ from
+the ordering of the transaction identifiers of the transactions, the
+entry values in the VBT might not be in the correct commit-time order.
+Therefore, reading transactions that wish to read a version $v >
+\stablever$ need to find the transaction identifiers of the
+transactions with commit-time versions $v_c: \stablever < v_c
+\leq v$, search the VBT for all these versions, and rearrange them according
+to the commit-time ordering so that the most recent update is found.
+In the example database of \figref{fig:cmvbt-example}, a user
+querying for keys that are present in the commit-time version \num{5} must
+find all keys in the VBT stored with transaction identifiers \num{103} and
+\num{101} (corresponding to commit-time versions \num{4} and \num{5}). 
+This is relevant for situations where the queried key has not been updated by
+the latest preceding transaction (in the example, the transaction with
+commit-time version~\num{5}), so that the data item that is alive at the
+queried version has been created by an earlier transaction.
+
+More formally, we define \transcom{v} to be the set of transient committed
+versions that are relevant when querying for the version~$v$:
+$\transcom{v} = \{ v_c : \stablever < v_c \leq v \}$. 
+In the example of \figref{fig:cmvbt-example}, $\transcom{5} = \{4, 5\}$. 
+Furthermore, we define a mapping~\idcommap{v} from the transaction
+identifiers of the transactions that created the committed versions into the
+commit-time versions:
+$\idcommap{v}[\text{CTI}[v_c]] = v_c$ for all $v_c \in \transcom{v}$. 
+In the example, $\idcommap{5} = \{101 \to 5, 103 \to 4\}$.
+Now, when looking for the most recent update of key~$k$, the VBT must be
+queried searching for the updates that have been created by a transaction
+with an identifier~$v_i$ such that there is a mapping $v_i \to v_c$ in
+\idcommap{v}. 
+After all these updates for any given key have been found, they
+must be rearranged according to the ordering of the corresponding
+commit-time versions, so that updates with a transaction identifier~$v_i$ are
+sorted by~$\idcommap{v}[v_i]$.
+After this, the most recent update is known to be the last update in the
+ordering. 
+If no pending updates on key~$k$ are found in the VBT, the most recent update
+is queried from the TMVBT index.
+
+The ``wrong'' ordering of entries in the VBT is not specific to the CMVBT
+structure, but is in fact present in all multiversion database systems that
+allow concurrent updating transactions to commit in an order different
+from their starting order.
+Lomet et~al.~\cite{lomet:2006:transactiontime} have solved this
+problem by using lazy timestamping, as described in \secref{sec:tsbmvbt:tsb}.
+This technique also requires a lookup table (the persistent timestamp
+table~\cite{lomet:2006:transactiontime,lomet:2009:improving}) for converting
+transaction identifiers into commit-time versions. 
+In our technique, the versions of entries are corrected when the
+committed pending updates are applied to the TMVBT for permanent storage, and
+stable versions can be queried without having to convert any versions or
+rearrange any updates.
+
+
+
+%% Concurrency Control and Recovery
+%%---------------------------------------------------------------------
+\section{Concurrency Control and Recovery}
+\label{sec:cmvbt:concurrency}
+
+The CMVBT allows us to use various approaches for concurrency control and
+recovery. 
+In this section, we describe the general idea of our concurrency-control and
+recovery algorithms.
+Our approach for database recovery follows the \abbr{ARIES}
+algorithm~\cite{mohan:1992:aries,mohan:1992:aries-im,mohan:1990:aries-kvl}
+with physiological logging and standard steal-and-no-force page buffering
+policy.
+Each structure-modification operation on both the VBT and the
+TMVBT is logged using a single physiological redo-only log
+record, so that interrupted tree-structure modifications are never
+rolled back (undone) when a transaction aborts or system fails.
+This approach has been described for \Btree{}s and \Blinktree{}s by Jaluta
+et~al.~\cite{jaluta:2005:blink,jaluta:2006:page-server}.
+
+The actions of user transactions on the VBT index are logged with
+standard redo-undo log records, and the corresponding undo actions with  
+redo-only log records, as described in more detail in
+\secref{sec:cmvbt:user-actions}. 
+These log records are required for total and partial rollbacks of active
+transactions.
+A total rollback for a transaction~$T$ could be performed by performing a
+leaf-level scan of the VBT, and by deleting all the pending updates of the
+form $(k, \txid{T}, \updatemark)$.
+However, if a single transaction updates the same key multiple times,
+the previous values stored with the key are overwritten, and need to
+be restored when rolling back the transaction to a preset savepoint. 
+Thus we write standard physiological redo-undo log records to log
+forward-rolling update actions, and redo-only log records to log undo
+actions, of user transactions.
+The structure-modification operations are logged with redo-only log
+records, so that they are never undone.
+These log records are used to bring the VBT up-to-date after a single
+transaction has crashed.
+If the entire database system crashes, it is possible to bring the VBT
+up-to-date either by using \abbr{ARIES}-based
+recovery~\cite{mohan:1992:aries,mohan:1992:aries-im}, or by reconstructing
+the VBT logically based on the log contents, including only the entries of
+committed transactions.
+All update actions on the TMVBT are performed by the maintenance transaction,
+which is never aborted or undone. 
+If a system crash occurs during the execution of the maintenance transaction,
+the transaction is resumed after the system has recovered. 
+Redo-only log records are thus sufficient for logging the actions
+performed on the TMVBT index.
+
+Concurrency control on the key level is provided by the snapshot
+isolation~(\abbr{SI}) algorithms (\secref{sec:mv-data:cc}).
+In snapshot isolation, each transaction reads data items that were alive when
+the transaction started; that is, data items that are alive at
+version~\snapver{T} (see \secref{def:snapver}).
+The version that transaction~$T$ is reading is called the \emph{snapshot of
+$T$}\@. 
+As with the TMVBT index described in the previous chapter, read-only
+transactions always read data from their own snapshot, and thus do not
+require locks to protect the keys against concurrent modifications.
+Updates to the database are performed by adding a new version of the
+updated data item to the snapshot of the updating transaction (with updates
+stored in the VBT index), allowing updating transactions to read their own
+modifications directly from the snapshot.
+Snapshot isolation is an obvious choice for multiversion structures,
+because the entire history of the database is preserved, and thus
+the snapshot state is available for each transaction.
+
+Logical consistency for updating transactions is guaranteed by checking that
+overlapping transactions do not make updates to the same data items. 
+Transactions~$T$ and~$T'$ are \emph{overlapping}, if 
+$\snapver{T} < \commitver{T'} < \commitver{T}$, or vice versa.
+We assume the same approach for enforcing snapshot isolation as is 
+used in PostgreSQL~\cite{alomari:2008:si-cost}, as described in
+\secref{sec:mv-data:cc}.
+Each updating transaction thus takes a commit-duration lock on the key~$k$ of
+any data item it modifies.
+Furthermore, an updating transaction~$T$ must check that the data item with
+key~$k$ has not been updated by an overlapping committed transaction~$T'$.
+We do not assume any specific method for implementing this check, but leave
+the details open.
+One possible method is to search the VBT and TMVBT to see if any updates have
+been made by such a committed transaction.
+Another possibility is for the committed transaction~$T'$ to leave persistent
+``residual locks'' on the lock manager that conflict only with transactions
+that have started before $T'$ committed.
+% To confirm this, the VBT (and possibly the TMVBT) must be searched for updates
+% by transactions with commit-time versions in the range $(\snapver{T},
+% \comver]$.
+If a conflicting update is found, the active transaction~$T$ must be aborted
+to maintain snapshot isolation. 
+% Searching for an update by an overlapping committed transaction is described
+% in more detail in \secref{sec:cmvbt:user-actions}.
+Note that the write locks taken by updating transactions in this approach
+only block other updating transactions, because read-only transactions take
+no locks. 
+
+The global version variables~\comver, \stablever\ and~\movever\ are
+maintained in the persistent database, and the reading and writing of~\comver\
+and \movever\ are protected with locks, as in the TMVBT
+(\secref{sec:tmvbt:actions}).
+A \action{begin-read-only} action acquires a short-duration read lock
+on~\comver\ for reading its value, and a \action{commit-update}
+action acquires a commit-duration write lock on it for incrementing
+its value. 
+The maintenance transaction acquires a commit-duration write lock
+on~\movever\ at the beginning, thus guaranteeing that at most
+one maintenance transaction is active at a time.
+The stable version variable~\stablever\ is read often, and thus the reading
+and writing of it is protected by latching.
+This approach is sufficient, because \stablever\ is only updated by the
+maintenance transaction, which is never undone.
+The updating of~\stablever\ is protected by a write latch taken on the
+database page on which the variable is stored, and the reading of the
+variable by query actions is protected by a read latch taken on the same
+page.
+
+Structural consistency of the VBT index is maintained by standard
+page-latching operations, with latch-coupling applied to ensure child-link
+consistency during tree traversals.
+We define the latching order to be top-down, left-to-right for all
+transactions, and we disallow upgrading read latches to write latches.
+Furthermore, all page latches must be released whenever a write lock
+cannot be acquired immediately, so that no page latches are held when the
+transaction is waiting for a lock.
+These are necessary (and sufficient) restrictions to avoid deadlocks
+that involve page latching~\cite{gray:1993:transactionprocessing}.
+For the TMVBT index, pages need to be latched, but latch-coupling is
+not always required, as explained in \secref{sec:tmvbt:actions}. 
+This is because the only transaction that is allowed to perform updates on
+the TMVBT index is the system maintenance transaction, and there can be
+only one such transaction running at a time.
+The maintenance transaction therefore does not need to do latch-coupling.
+Read-only transactions that read inactive data do not need latch-coupling
+either, as noted in the previous chapter.
+This means that read-only transactions that are reading stable versions
+(from the TMVBT) do not need latch-coupling.
+Further details of concurrency control and recovery are embedded in the
+explanations of the algorithms that are described in the next sections,
+alongside with more detailed explanations of the latching policy.
+
+
+
+%% User Actions
+%%---------------------------------------------------------------------
+\section{User Actions}
+\label{sec:cmvbt:user-actions}
+
+We allow two kinds of user transactions to operate concurrently on
+the \abbr{CMVBT}: read-only transactions and updating transactions. 
+There are no restrictions on how many transactions of either type
+can be running at the same time.
+Read-only transactions follow the transaction model described in
+\secref{sec:mv-data:read-only-tx}, and updating transactions follow the
+model described in \secref{sec:mv-data:updating-tx}.
+As in \secref{sec:tmvbt:multi-action-tx}, we write $T$ in the log records of
+user actions to mean that the transaction identifier $\txid{T}$ is written in
+the log record.
+
+For the user actions of read-only and updating transactions that operate on
+the CMVBT index, we need to define the following algorithms: 
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+\item \alg{update-item} to perform an update action (insert or delete).
+\item \alg{query-stable} to query for a single key of a stable version.
+\item \alg{query-transient} to query for a single key of a transient
+version.
+\item \alg{next-key-stable} to query for the next key of a stable version.
+\item \alg{next-key-transient} to query for the next key of a transient
+version.
+\end{enumerate}
+% In the following discussion, we present algorithms for performing
+% these actions, first in a general level, and then in more detail.
+These algorithms are presented later on. 
+
+With these algorithms, the actions of a read-only transaction are performed
+as follows.
+Key-level locking is not required for read-only transactions.
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+  
+  % Begin read-only
+  \item \action{begin-read-only}$($version~$v)$: begins a new read-only
+  transaction; this action takes a short-duration read lock on~\comver, 
+  reads the value of the variable, checks that $v \leq \comver$, and records
+  the value $\snapver{T} \gets v$ for the transaction.
+  If the version check fails, the transaction is not allowed to begin.
+
+  % Single-key query
+  \item \action{query}$($key~$k)$:
+  this action reads the value of the stable-version variable~\stablever.
+  If $\snapver{T} \leq \stablever$, then \alg{query-stable} is run to find
+  the correct data item from the TMVBT index; 
+  otherwise the \alg{query-transient} algorithm is run to 
+  either find the latest relevant pending update from the VBT index or to
+  find the latest data-item entry from the TMVBT index.
+  The reading of~\stablever\ is protected by read-latching the database
+  page~$p$ that contains the variable.
+  The value can be cached for the transaction, so that subsequent
+  queries do not need to read the page~$p$. 
+
+  \item \action{range-query}$($range~$[k_1, k_2))$:
+  like the \action{query} action, this action reads the value of the
+  stable version variable~\stablever.
+  If $\snapver{T} \leq \stablever$, then \alg{next-key-stable} is run to find
+  the set of data items from the TMVBT index; 
+  otherwise \alg{next-key-transient} is run to retrieve the set of data
+  items from both the VBT and the TMVBT indexes.
+  The set of data items is retrieved by first finding the first entry from the
+  range with the query $(k, w) \gets \proc{N}(k_1, \snapver{T})$, and
+  \proc{N} is either \alg{next-key-stable} or \alg{next-key-transient}, as
+  explained above.
+  If $k < k_2$, the snapshot data item $(k, w)$ is added to the result
+  set, and the next data item is fetched with $(k', w')
+  \gets$ $\proc{N}(k, \snapver{T})$.
+  This iteration is continued until a data item that is outside the
+  queried range $[k_1, k_2)$ is found, or until the algorithm~\proc{N}
+  returns no more results.
+  To be more precise, the first entry is located with a slightly different
+  query algorithm because the first entry in the TMVBT index may have the
+  key~$k_1$, and thus the query actually find the first entry $(k,w)$ with $k
+  \geq k_1$, instead of $k > k_1$.
+  When querying for the rest of the keys, the next key must be greater than
+  the previous key.
+  We have omitted the description of the first-key-query algorithm because it
+  is almost identical to the next-key-query algorithm. 
+
+  \item \action{commit-read-only}: commits the transaction by removing
+  it from the system. 
+  No further actions are required.
+\end{itemize}
+
+For updating transactions, the actions are implemented as follows. 
+Key-level locking is only required where specifically stated.
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+ 
+  % Begin updating transaction
+  \item \action{begin-update}: begins a new updating transaction~$T$;   
+  this action creates an identifier for the transaction ($\txid{T} \gets$
+  \emph{new identifier}), acquires a short-duration read lock on the
+  variable~\comver, and records the snapshot version~$\snapver{T} \gets
+  \comver$.
+  The action finishes by writing the log record \lrb{T},
+  \logact{begin}, \lre{\snapver{T}}, but the log is not forced to disk.
+
+  % Single-key query
+  \item \action{query}$($key~$k)$: this action queries the VBT and the TMVBT
+  indexes to find the data item that is alive at \snapver{T}.
+  Although \snapver{T} might be stable, this action must always use
+  the \alg{query-transient} algorithm to query both the VBT and the TMVBT
+  indexes, because the transaction might have itself updated the key~$k$, and
+  pending updates are located only in the VBT index. 
+
+  % Range-query
+  \item \action{range-query}$($range~$[k_1, k_2))$: like the \action{query}
+  action, this action always uses the \alg{next-key-transient} algorithm to
+  query both VBT and TMVBT indexes to locate the data items that are alive at
+  \snapver{T} in the range $[k_1, k_2)$.
+
+  % Write action
+  \item \action{write}$($key~$k,$ data~$w)$: this action takes a
+  commit-duration write lock on the key~$k$, and invokes the
+  \alg{update-item} algorithm to insert a pending update into the VBT\@. 
+  This action writes a redo-undo log record
+  \lrb{T}, \logact{write}, $p$, $k$, $w$, $\updatemark'$, \lre{n}, where
+  (1)~$p$~is the page identifier of the VBT page on which the pending update
+  was inserted; 
+  (2)~$\updatemark'$~is the value of an overwritten pending update, if
+  the action replaced an earlier update created by~$T$; or
+  \nullmark, otherwise; and 
+  (3)~$n$ is the Undo-Next-LSN of the log record; that is, the
+  LSN of the last (not-yet-undone) action performed by~$T$
+  before this action.
+
+  % Delete action
+  \item \action{delete}$($key~$k)$: the operation of this action is identical
+  to the \action{write} action, except that in the \alg{update-item} algorithm
+  a deletion is performed instead of data-item insertion, and the
+  redo-undo log record that is written is \lrb{T}, \logact{delete}, $p$, $k$,
+  $w'$, \lre{n}. 
+  We denote the possibly replaced value of a pending update here by~$w'$
+  instead of~$\updatemark'$, because in this case, the replaced value cannot
+  be $\deletemark$.
+
+  % Set savepoint
+  \item \action{set-savepoint}: sets a savepoint and returns the savepoint
+  identifier~$s$ to the transaction.
+  The action first writes a redo-undo log record \lrb{T}, \logact{savepoint},
+  \lre{n}. 
+  The savepoint identifier~$s$ is the log sequence number of the savepoint
+  log record.
+
+  % Rollback to savepoint
+  \item \action{rollback-to-savepoint}$($LSN~$s)$: rolls the transaction
+  back to a preset savepoint identified by the log sequence number~$s$.
+  This action is followed by the \action{undo-write} and
+  \action{undo-delete} actions for the \action{write} and
+  \action{delete} actions performed after setting savepoint~$s$, executed
+  in the reverse order. 
+  The \action{write} and \action{delete} actions are located with a reverse
+  scan of the log records, starting from the last action performed by~$T$,
+  and by locating the previous records via the Undo-Next-LSN
+  pointers in the log records that point to the log record of the previous
+  action, until the log record for the \action{set-savepoint} action is found
+  for the savepoint~$s$.
+
+  % Commit
+  \item \action{commit-update}: commits the updating transaction; this action
+  (1)~acquires a commit-duration write lock on~\comver,
+  (2)~increments the variable $\comver \gets \comver + 1$,
+  (3)~assigns a commit-time version to the transaction
+  $\commitver{T} \gets \comver$,
+  (4)~adds the mapping CTI$[\commitver{T}] \gets \txid{T}$, 
+  (5)~writes a log record \lrb{T}, \logact{commit}, \lre{\comver},
+  (6)~forces the log onto disk, 
+  (7)~releases the lock on \comver, and
+  (7)~removes the transaction~$T$ from the system.
+  The release-version action is performed by the system maintenance
+  transaction some time after the commit operation has finished.
+  The commit-time version \commitver{T} can be queried by other
+  transactions immediately after this action has completed, before the
+  maintenance transaction has run.
+
+  % Version release
+  \item \action{release-version}: incorporates the updates performed by the
+  earliest transient committed transaction into the TMVBT index, and removes
+  the pending updates from the VBT index.
+  This action is implemented by the maintenance transaction that is explained
+  in more detain in \secref{sec:cmvbt:maintenance-tx}.
+
+  % Abort 
+  \item \action{abort}: labels the transaction as aborting and starts the
+  backward-rolling phase.
+  This action writes the log record \lrb{T}, \logact{abort},
+  \lre{n}. 
+  In the backward-rolling phase, all the actions of the transaction are
+  undone, in reverse order, by following the previous-record pointers (i.e.,
+  the Undo-Next-LSN values) in the log records. 
+  This action is thus similar to the \action{rollback-to-savepoint} action,
+  except that the log is rolled back until the \action{begin} log record is
+  encountered, at which point the \action{finish-rollback} action is executed.
+%   Another possibility for undoing all the actions of transaction~$T$ is to
+%   scan through the VBT index and physically remove all entries of the
+%   form $(k, \txid{T}, \updatemark)$.
+
+  % Undo the write action
+  \item \action{undo-write}$($log record~$r)$: this action undoes a write
+  action by reading the log record $r =
+  \lrb{T}$, \logact{write}, $p$, $k$, $w$, \lre{\updatemark',n} and by
+  physically removing the entry $(k, \txid{T}, w)$ from the index. 
+  If $\updatemark' \neq \nullmark$, then the write action replaced an earlier
+  pending update created by transaction~$T$, and the undo action inserts
+  the pending update $(k, \txid{T}, \updatemark')$ into the VBT index to
+  restore the overwritten entry. 
+  Note that $\updatemark'$ may also be $\deletemark$, if the transaction had
+  deleted the key~$k$ earlier.
+  The undo action finishes by writing the redo-only compensation log record 
+  \lrb{T}, \logact{undo-write}, $p'$, $k$, $w$, $\updatemark'$, \lre{n},
+  where $p'$ is the page identifier of the VBT page on which the update was
+  performed. 
+  If a structure-modification operation has occurred on page~$p$
+  after the \action{write} actions, it is possible that $p' \neq p$.
+
+  % Undo the delete action
+  \item \action{undo-delete}$($log record~$r)$: this action undoes a delete
+  action by reading the log record $r =
+  \lrb{T}$, \logact{delete}, $p$, $k$, $w'$, \lre{n} and by physically
+  removing the entry $(k, \txid{T}, \deletemark)$ from the VBT index. 
+  If $w' \neq \nullmark$, then the delete action replaced an earlier pending
+  update created by transaction~$T$, and the undo action inserts the
+  pending update $(k, \txid{T}, w')$ into the VBT index to restore the 
+  overwritten pending update. 
+  The undo action finishes by writing the redo-only compensation log record
+  \lrb{T}, \logact{undo-delete}, $p'$, $k$, $w'$, \lre{n}.
+
+  % Finish rollback 
+  \item \action{finish-rollback}: finishes the rollback of a backward-rolling
+  transaction by writing a log record \lrb{T},
+  \lre{\logact{finish-rollback}}, forcing the log onto disk, and
+  by removing the transaction~$T$ from the system.
+\end{itemize}
+
+Let us now consider the algorithms required to implement the user actions.
+The algorithm \alg{update-item} which performs an update action on the
+CMVBT index is reasonably straightforward: all that needs to be done is
+to record the action to the VBT, using top-down, left-to-right
+latch-coupling for tree traversal.
+An insertion of a data item with key~$k$ by a transaction~$T$
+with $\txid{T} = v$ is recorded by adding the entry $(k, v, w)$, where
+$w$ is the entry value;
+and deletion of a data item with key~$k$ by transaction~$T$ is recorded
+by adding the entry $(k, v, \deletemark)$. 
+If the VBT index already contains an entry $(k, v, \updatemark')$ with the
+same key and version, the old entry will be replaced by the new entry. 
+% Otherwise, all update actions always add a new key into the VBT index.
+% The algorithm finishes by writing a redo-undo log record
+% \logrecord{T,\logact{write},p,k,w,w',n} for a \action{write} action
+% and a redo-undo log record \logrecord{T,\logact{delete},p,k,w',n}
+% for a \action{delete} action.
+% Here, $p$ denotes the page where the new pending update was inserted, and 
+% $w'$ is the value of a replaced data item, if the action replaced an earlier
+% update create by the same transaction.
+The possible structure-modification operations on the VBT needed to
+accommodate the update are performed level-by-level as separate atomic
+actions that are never undone, before the installation of the update,
+similarly to the SMOs for the TMVBT index (see \secref{sec:tmvbt:smo}).
+
+Querying for stable versions with the \alg{query-stable} algorithm is also
+straightforward. 
+When a read-only transaction queries a stable version, the transaction 
+can directly query for the version from the TMVBT index, as explained in
+\secref{sec:tmvbt:actions}, by using the TMVBT query action.
+In this situation, the TMVBT index can be traversed without latch-coupling,
+and saved paths can be used for key-range and next-key queries without any
+need to check for page validity when relatching the pages on the path. 
+This is possible because all pages traversed and entries read are
+inactive, and thus guaranteed to remain where they are located, by
+\invref{inv:tmvbt-static-inactive-entries}.
+The read-only transaction can determine whether a version is stable by reading
+the stable version variable~\stablever.
+The reading of the variable is protected by read-latching the page on which it
+is stored. 
+The latch can be released immediately after the value of the variable
+has been determined.
+It is also possible to read the variable value once, at the beginning of the
+transaction, and then cache the result for the transaction.
+% This may lead to a read-only transaction trying to find pending updates from
+% the VBT that have already been applied to the TMVBT and deleted from the VBT,
+% but this does not cause problems, because the updates will then be found from
+% the TMVBT later on.
+
+When a read-only transaction is querying for a transient version, and when an
+updating transaction is performing any key query, the \alg{query-transient}
+algorithm must be used.
+Both read-only and updating transactions use the same
+\alg{query-transient} algorithm for querying the index structures, and we
+will thus use the term \emph{reader} to refer to a read-only transaction or
+an updating transaction that is performing a query action.
+When the queried version is transient, the reader cannot know
+beforehand which index structure contains the most recent update that
+precedes the queried version.
+The relevant version might be the last update in the TMVBT, or
+there may be an intermediate update in the VBT\@.
+For illustration of such a situation,
+an example of the possible contents of a CMVBT index is given in
+\figref{fig:cmvbt-contents}.
+This example represents the same logical situation as the example shown in 
+\figref{fig:cmvbt-example}, but now the actual entries stored in the
+different indexes are shown.
+Furthermore, when an updating transaction has itself performed an update
+action, the pending update is only located in the VBT, and it is thus not
+sufficient to restrict the search to the TMVBT, even if the snapshot
+version~\snapver{T} of the updating transaction is stable.
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/cmvbt-example-contents}
+  \figcaption{Example of data entries stored in a CMVBT index}
+  {This example represents the same situation as
+  \figref{fig:cmvbt-example}.
+  The format of entries in the TMVBT is (key, life span, data), and the
+  format of entries in the VBT is (key, transaction identifier, update).
+  In addition to the committed transactions, the VBT also contains the
+  updates of two active transactions with transaction identifiers \num{102}
+  and \num{104}.}
+  \label{fig:cmvbt-contents}
+\end{center}
+\end{figure}
+
+In the example of \figref{fig:cmvbt-contents}, when performing queries that
+target the transient commit-time version~\num{5}, the relevant version for
+key~\num{3} is the last update in the TMVBT index (created by transaction
+$T_3$), while the relevant version for key~\num{2} is the update in the VBT
+by transaction $T_5$ with transaction identifier $101$.
+Both structures may need to be checked whenever querying for a transient
+version.
+For single-key queries (with the key given), it is sufficient to
+restrict the search to the VBT index if an update on the key is found from
+there; only if no such update is found from the VBT do we need to consult the
+TMVBT to find the latest update on the key.
+However, when performing next-key queries, both structures always need to be
+checked, because it is impossible to determine which structure contains the
+nearest key otherwise.
+
+Because the maintenance transaction may be moving the updates
+of the move version~\movever\ to the TMVBT during the execution of the query
+action, the reader must be prepared to miss some of the updates of
+version~\movever\ in the VBT, and to possibly re-encounter some already
+encountered updates in the TMVBT\@. 
+The situation is amended by organizing the read actions in such a way that
+the VBT is always consulted first, and the TMVBT only afterwards.
+This guarantees that no update is missed.
+
+\begin{algorithm}[htb]
+$\proc{query-transient}(k, v, T)$:
+
+\begin{algorithmic}[1]
+\STATE $\updatemark \gets \proc{key-query-VBT}(k, v, T)$
+\IF[If no updates found from \abbr{VBT}]{$\updatemark = \nullmark$}
+  \RETURN $\proc{query-stable}(k, v, \TRUE)$
+\ELSIF[If latest update in VBT is a deletion]{$\updatemark = \deletemark$}
+  \RETURN \nullmark
+\ELSE[Latest update in VBT is an insertion]
+  \RETURN \updatemark
+\ENDIF
+\end{algorithmic}
+\figcaption{Key-query algorithm for transient versions}%
+{This algorithm is used by read-only transactions when querying for transient
+versions, and by updating transactions when performing any key queries.}
+\label{alg:query-transient}
+\end{algorithm}
+
+The general algorithm for \alg{query-transient} is given in
+\algref{alg:query-transient}\@.
+Querying for a single key from the TMVBT index with the procedure
+\alg{query-stable} works exactly like the single-key query action of the
+TMVBT, explained in \secref{sec:tmvbt:actions}, except that the third
+parameter is used to indicate that the reader may need to read active data
+and must therefore use latch-coupling when traversing the paths of the TMVBT
+index. 
+Note that the version~$v$ may be greater than the most recent version
+of the TMVBT (i.e., \stablever\ or \movever).
+The searches in the TMVBT still work, because the live pages (and entries) in
+the TMVBT have a life span of the form $[v',\infty)$, which covers~$v$.
+
+When reading the pages of the TMVBT index, the reader can determine whether a
+page has been invalidated by a concurrent structure-modification operation
+(for example, when relatching pages on a previously released saved path) by
+internally caching the page-LSN before releasing latches and by then
+comparing the cached value to the value in the page after it has been
+relatched. 
+If the new page-LSN is greater than the cached one, then the page has
+been modified by the maintenance transaction, and it is necessary to either
+re-traverse the entire path from the root of the TMVBT index or to backtrack
+up the saved path until an unmodified page is found.
+
+Querying for a single pending update from the VBT is described in
+\algref{alg:key-query-vbt}\@.
+The algorithm generates a reverse identifier-to-commit-time~(\abbr{ITC})
+mapping for all relevant commit-time versions, mapping the
+possible updates created by the transaction itself to infinity so
+that they always take precedence over other updates.
+A transaction identifier list~$I$ is also generated.
+This list contains the transaction identifiers for which there is a mapping
+in the \abbr{ITC}\@.
+The \alg{query-all-VBT}$(k, I)$ operation finds all pending updates $(k, v',
+\updatemark')$ from the VBT with key~$k$ and transaction identifier $v' \in
+I$. 
+This function is implemented using a standard VBT range-query operation with
+latch-coupling applied when traversing in the index.
+After finding all the possibly relevant updates, the \alg{key-query-VBT}
+function orders the updates in transaction commit order, and returns the
+value $\updatemark'$ of the latest update.
+If there are no updates on the key~$k$ in the VBT, the function
+returns the null marker~$\nullmark$. 
+If the last update is a deletion, the returned value is $\updatemark' = 
+\deletemark$.
+These values must be separate so that the single-key-query algorithm
+knows whether to continue searching from the TMVBT or not.
+
+In the example database of \figref{fig:cmvbt-contents}, the
+reverse \abbr{ITC} mapping when querying for commit-time version~\num{5}
+with a read-only transaction~$T_r$ is $\{101 \to 5, 103
+\to 4\}$. 
+If the querying transaction is an updating transaction~$T_u$ with
+transaction identifier $\txid{T_u} = 104$, the
+\abbr{ITC} mapping is $\{101 \to 5$, $103 \to 4$,
+$104 \to \infty\}$. 
+For example, if $T_u$ queries for key~\num{4} (at transient commit-time
+version~\num{5}), the \abbr{ITC} is generated as explained
+above, and the transaction identifier list would be~$I = \{101, 103, 104\}$.
+The \alg{query-all-VBT} operation finds the entries $(4, 103, \deletemark)$
+and $(4, 104, w_4')$, which are then converted to commit-time entries
+and placed in the ordered result map $K_c = \{4 \to
+\deletemark, \infty \to w_4' \}$.
+The query returns the value with the highest key from this map, $w_4'$, as
+the result.
+
+\begin{algorithm}[htb]
+$\proc{key-query-VBT}(k, v, T)$:
+
+\begin{algorithmic}[1] 
+\STATE $\textrm{\abbr{ITC}} \gets \emptymark$ 
+\STATE $I \gets \emptymark$
+\FOR{each $v_c \in \{ \stablever + 1, \ldots, v \}$}
+  \STATE $v_i \gets \text{CTI}[v_c]$
+  \COMMENT{Find the transaction identifier}
+  \STATE $\textrm{\abbr{ITC}}[v_i] \gets v_c$
+  \STATE $I \gets I \cup \{ v_i \}$
+\ENDFOR
+\IF{$T$ is an updating transaction}
+  \STATE $\textrm{\abbr{ITC}}[\txid{T}] \gets \infty$
+  \COMMENT{Updates by $T$ have precedence}
+  \STATE $I \gets I \cup \{ \txid{T} \}$
+\ENDIF
+\STATE $K_i \gets \proc{query-all-VBT}(k, I)$
+\STATE $K_c \gets \emptymark$
+\FOR{\textbf{each} $(k, v', \updatemark') \in K_i$}
+  \STATE $v_c \gets$ \abbr{ITC}$[v']$
+  \STATE $K_c[v_c] \gets \updatemark'$
+\ENDFOR
+\RETURN entry $K_c[v_c]$ with highest version $v_c$; or \nullmark, if $K_c$
+is empty
+\end{algorithmic}
+\caption{Algorithm for querying for a single key from the VBT index.}
+\label{alg:key-query-vbt}
+\end{algorithm}
+
+When a user transaction~$T$ is querying for a single key~$k$ of a transient
+version $v > \stablever$, and the maintenance transaction~$T_m$ is ongoing,
+one of the following situations may occur, regarding an update of
+version~\movever\ when that update is the latest update on the key~$k$:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+
+\item $T$ finds the pending update in the VBT\@.
+The update has not yet been applied to the TMVBT index.
+This is the normal situation, and no special processing is required.
+
+\item $T$ finds the pending update in the VBT\@.
+The update has been applied to the TMVBT by the maintenance
+transaction $T_m$. 
+Because the pending update was found in the VBT, the TMVBT is not
+searched, and thus this situation is similar to the first one.
+
+\item $T$ does not find the pending update of version~\movever\ in the
+VBT, because the maintenance transaction $T_m$ has already deleted it. 
+Because no update was found in the VBT, the TMVBT is searched to find
+the latest update.
+At this point, the maintenance transaction $T_m$ has already applied the
+update to the TMVBT, so the update is found in there.
+\end{enumerate}
+
+If there is a more recent update with commit-time version~$v_c$ such that 
+$\movever < v_c \leq \snapver{T}$, then this update will be found
+in the VBT in all of the above situations, and it will be
+returned directly without consulting the TMVBT index.
+
+For next-key queries, the general algorithm follows the same structure as the
+single-key query: if a read-only transaction is querying for a stable version,
+the algorithm \alg{next-key-stable} is used to query the TMVBT index directly. 
+If the queried version is transient, or if an updating transaction is
+performing the range-query, the algorithm~\alg{next-key-transient}
+(\algref{alg:next-query}) is run.
+In this case, both the VBT and the TMVBT must always be searched to locate 
+the data item with the next key.
+
+\begin{algorithm}[!htb]
+$\proc{next-key-transient}(k, v, T)$:
+
+\begin{algorithmic}[1]
+\STATE $k_c \gets k$ 
+\COMMENT{Initialize the current key}
+\label{alg:next-query:init-keys}
+\LOOP 
+  \STATE $(k_1, \updatemark_1) \gets \proc{next-key-VBT}(k_c, v,
+  T)$ 
+  \STATE $(k_2, w_2) \gets \proc{next-key-stable}(k_c, v,
+  \TRUE)$
+  \IF[Data item with next key is in TMVBT]{$k_1 > k_2$}
+  \label{alg:next-query:next-in-tmvbt}
+    \RETURN $(k_2, w_2)$
+  \ELSIF[Pending update for the next key is in VBT]{$k_1 < k_2$}
+  \label{alg:next-query:next-in-vbt}
+    \IF[Is $\updatemark_1$ an insertion or update]{$\updatemark_1 \neq
+    \deletemark$} 
+      \RETURN $(k_1, \updatemark_1)$
+    \ENDIF
+  \ELSE[Same key returned from both structures]
+  \label{alg:next-query:next-in-both}
+    \IF[No next keys in either index]{$k_1 = \nullmark$}
+      \RETURN \nullmark
+    \ELSIF[Is $\updatemark_1$ an insertion?]{$\updatemark_1 \neq
+    \deletemark$} 
+      \RETURN $(k_1, \updatemark_1)$
+    \ENDIF
+  \ENDIF
+  \STATE $k_c \gets k_1$
+  \COMMENT{Scan forward in both indexes}
+\ENDLOOP
+\end{algorithmic}
+\caption{Algorithm for finding the next live data-item starting from a
+given key.}
+\label{alg:next-query}
+\end{algorithm}
+
+When searching for a transient version, the next keys from both structures
+need to be retrieved alternatingly. 
+In \algref{alg:next-query}, starting from 
+line~\ref{alg:next-query:init-keys}, the current key is initialized to the
+previously found key. 
+After this, at the beginning of the infinite loop, both of the index
+structures are searched to find the next key, and the algorithm checks which
+key is nearest to the previously found key. 
+If the next nearest key is found in the TMVBT
+(line~\ref{alg:next-query:next-in-tmvbt}), we can return the key and
+the corresponding value directly. 
+If, on the other hand, the nearest key is in a pending update found in the
+VBT (line~\ref{alg:next-query:next-in-vbt}), we must check whether the
+pending update is an insertion (and not a deletion) before returning the key.
+Similarly, if the keys fetched from both structures are the same
+(line~\ref{alg:next-query:next-in-both}), we need to check that the
+pending update on the key in the VBT is not a deletion.
+If the pending update is a deletion, we need to skip this key and scan
+forward to find the next key.
+Whenever a pending deletion is found, and the indexes need to be scanned
+forward, both of the structures need to be queried again.
+This means that the tuple $(k_2, w_2)$ found from the TMVBT cannot be reused,
+because an ongoing maintenance transaction might have changed the nearest key
+in the TMVBT index by inserting a new entry $(k_2', w_2')$ with $k_2' < k_2$
+into the TMVBT\@.
+
+Like the \alg{key-query-VBT} function, the \alg{next-key-VBT}
+function needs to find the transaction identifiers of all the commit-time
+versions between \stablever\ and~$v$, find pending updates with these
+transaction identifiers, and order the updates based on their corresponding
+commit-time versions.
+The actual implementation of the next-key query should use saved paths to
+accelerate the next-key queries from the VBT and TMVBT indexes.
+With saved paths, most of the consecutive next-key calls to the VBT and CMVBT
+indexes will fall to the same leaf page, and they will reuse the existing
+saved path without requiring any additional \abbr{I/O} operations.
+To further enhance the operation, page fixes and latches in the VBT and TMVBT
+index structures need not be released between the next-key-query
+sub-operations in the main loop of \algref{alg:next-query}.
+
+As an example of a next-key query, suppose a read-only transaction~$T_r$ is
+querying for the key next to key~\num{3} at version~\num{4}, in the example
+database of \figref{fig:cmvbt-contents}.
+At the beginning of the next-key-query function, the next entries
+are fetched from both structures: $(k_1, \updatemark_1) = (4, \deletemark)$
+(from the VBT) and $(k_2, w_2) = (4, w_4)$ (from the TMVBT)\@.
+Because the keys of both of the entries are the same, the one retrieved from
+VBT takes precedence.
+However, because it is a deletion marker, we need to continue the
+search to find the next entries.
+The algorithm thus continues by finding the entries next to key~\num{4} from
+both of the structures: $(k_1, \updatemark_1) = (7, w_7)$ (from the VBT) and
+$(k_2, w_2) = \nullmark$ (from the TMVBT)\@.
+Because the TMVBT has no more entries, the VBT entry is the next key, and the
+key-value pair $(7, w_7)$ is returned to the user.
+
+The following theorems state the correctness and complexity of the user
+actions, expressed in terms of how many pages need to be visited:
+
+\thmskip
+\begin{theorem}
+\label{theorem:cmvbt:update} 
+The update action correctly records a key update (key insertion or
+deletion) in the VBT\@. 
+A single update action has a cost of \OhT{\log_\capacity n_V} page accesses,
+where $n_V$ is the number of entries in the VBT\@.
+\end{theorem}
+\begin{proof}
+The update action must traverse the VBT once to insert the update marker, so
+the complexity \OhT{\log_\capacity n_V} comes from the tree traversal.
+As with standard \Btree{}s, any required structure-modification
+operations do not affect the asymptotic complexity of the action.
+\end{proof}
+\thmskip
+
+\thmskip
+\begin{theorem}
+\label{theorem:cmvbt:key-query} 
+The key-query action for key~$k$ and version~$v$ correctly returns the
+most recent committed version~$v'$ of the queried key, relative to
+version~$v$ so that $v' \leq v$.
+A single key-query action for a stable version~$v$ has a cost of
+\OhT{\log_\capacity \entries{v}} page accesses, where \entries{v} is the
+number of entries in the TMVBT index that are alive at version~$v$, and
+\capacity\ is the page capacity.
+A single key-query action for a transient version~$v$ requires at
+most \OhT{\log_\capacity n_V + (n_a + n_t)/\capacity + \log_\capacity
+\entries{\stablever}} page accesses, where $n_V$ is the number of entries in
+the VBT, \entries{\stablever} is the number of entries in the TMVBT that are
+alive at the stable version~\stablever, $n_a$ is the number of active
+updating transactions, and $n_t$ is the number of transient versions.
+\end{theorem}
+\begin{proof}
+The key-query action for a stable version performs a single-key query
+action on the TMVBT, and thus has a cost of \OhT{\log_\capacity
+\entries{v}} page accesses (\thmref{thm:tmvbt-query-cost}). 
+For a transient version, the VBT search requires \OhT{\log_\capacity n_V}
+page accesses for the initial tree traversal, and at most an
+additional \OhT{(n_a + n_t)/\capacity} leaf page accesses to locate all
+pending updates that might be relevant to the key query.
+The latter part of the cost is derived from the fact that there can be at 
+most $n_a + n_t$ pending updates that have the key~$k$ in the VBT index,
+and all of these may have to be scanned.
+Because the entries with the same key are clustered together, it
+suffices to scan $(n_a + n_t) / \capacity$ VBT pages.
+Finally, the query for a transient version may need to further query the
+stable version from the TMVBT, thus adding the \OhT{\log_\capacity
+\entries{\stablever}} term to the complexity of the action.
+\end{proof}
+\thmskip
+
+\thmskip
+\begin{theorem}
+\label{theorem:cmvbt:range-query} 
+A range-query action for the key range $[k_1, k_2)$ targeting a
+stable version~$v$ has a cost of \OhT{\log_\capacity \entries{v} +
+r/\capacity} page accesses, where \entries{v} is the number of entries in the
+TMVBT index that are alive at version~$v$, $r$ is the number of entries
+returned by the query, and \capacity\ is the page capacity.
+A range-query action targeting a transient version~$v$ has a cost of
+at most \OhT{\entries{k} \log_\capacity n_V + \log_\capacity
+\entries{\stablever} + r/\capacity} pages, where \entries{k} is the maximum
+number of discrete keys at the queried interval (for databases that store
+integer keys, $k = k_2 - k_1$), and $n_V$ is the number of entries in the
+VBT\@.
+\end{theorem}
+\begin{proof}
+The range-query action of a stable version queries the TMVBT index directly,
+and the proof is thus the same as the proofs of
+Theorems~\ref{thm:tmvbt-query-cost} and~\ref{thm:mvbt-cost}.
+When querying for a transient version, it is possible that there are
+transient pending deletions in the VBT recorded for every possible discrete
+key value in the queried range, and the algorithm must process them all.
+In such a situation, the \alg{next-key-transient} algorithm needs to perform
+next-key queries for each possible discrete key value in the queried range.
+Each of these queries requires at most a single root-to-leaf traversal of
+both the VBT and the TMVBT\@.
+In the VBT, it is possible that the saved path cannot be efficiently reused
+to obtain the next key directly, because there may be other pending updates
+with the same key but different versions in the way.
+In the TMVBT, however, the saved path will be reused and the same number of
+pages need to be accessed in total as when querying for the stable version.
+\end{proof}
+\thmskip
+
+
+
+%% Maintenance Transaction
+%%---------------------------------------------------------------------
+\section{Maintenance Transaction}
+\label{sec:cmvbt:maintenance-tx}
+
+The maintenance transaction is a system-generated transaction that is run
+periodically to apply the pending updates of committed transactions, one
+transaction at a time, into the TMVBT index, and to delete the pending
+updates from the VBT\@.
+To ascertain correct operation with concurrent user transactions,
+the updates must be applied in such a way that the system transaction
+does not cause user transactions to miss any of them.
+This is accomplished by first applying the pending updates into the
+TMVBT, then increasing the stable version variable~\stablever,
+and only then removing the pending updates from the VBT index.
+A consequence of this approach is that the user transactions must be
+prepared to possibly encounter the same update twice when scanning
+the index structures. 
+
+The maintenance transaction performs the following steps:
+\begin{enumerate}
+\setlength{\itemsep}{0pt}
+
+\item 
+\label{maintenance:movever} 
+Acquire a commit-duration write lock on the global variable~\movever, update
+the variable $\movever \gets \stablever + 1$, and find out the
+corresponding transaction identifier $v_i \gets \text{CTI}[\movever]$.
+Reading of the stable version variable~\stablever\ is protected by 
+the read latch taken on the database page on which the variable is 
+stored.
+
+\item
+\label{maintenance:copy} 
+Scan through the VBT index to find the pending updates $(k, v_i,
+\updatemark)$ created by the transaction $T$ with $\txid{T} = v_i$.
+Apply the updates into the TMVBT index, changing the version
+from~$v_i$ to~\movever.
+
+\item 
+\label{maintenance:stablever} 
+Update the stable version to $\stablever \gets \movever$.
+Updating the variable is protected by taking a write latch on the database
+page on which the variable is stored. 
+
+\item 
+\label{maintenance:delete} 
+Scan through the VBT index a second time, and physically delete all the
+entries of the form $(k, v_i, \updatemark)$.
+
+\item 
+\label{maintenance:finish} 
+Remove the mapping $\movever \to v_i$ from the CTI table.
+
+\end{enumerate}
+
+The actions performed by the maintenance transaction are logged using
+redo-only log records. 
+If the system crashes during the execution of the maintenance
+transaction~$T_m$, the redo pass of restart recovery will redo all
+actions performed by~$T_m$ to bring the database pages into a consistent
+state and restart the maintenance transaction.
+All the steps of the maintenance transaction are idempotent, meaning that
+performing them multiple times has the same effect as performing them once. 
+That is, $f(f(x)) = f(x)$ for all actions~$f$ of the maintenance
+transaction $T_m$ and for all possible states~$x$ of the combined CMVBT
+(TMVBT + VBT) index structure.
+When the maintenance transaction is restarted after a system crash, it will
+automatically skip those actions that already have been performed.
+
+At the beginning, in step~\ref{maintenance:movever}, the move
+version~\movever\ is incremented to record that the maintenance transaction is
+active.
+Using the actions described for the TMVBT index in \secref{sec:tmvbt:actions},
+the maintenance transaction invokes the \action{begin-update} action of the
+TMVBT to update the active version variable~\actver\ of the TMVBT to
+\movever. 
+In practice, however, the active version variable should be the same as the
+move-version variable, when TMVBT is used as a part of the CMVBT index.
+
+The database management system must guarantee that there is only a
+single maintenance transaction running at any time.
+Thus, at the very beginning, the maintenance transaction takes a
+commit-duration write lock on~\movever.
+This action is logged by a redo-only log record
+\lrb{T_m}, \logact{begin-maintenance}, \movever, \lre{v_i}, where $v_i$ is the
+transaction identifier of the transaction that has the commit-time
+version~\movever.
+
+At the next step, step~\ref{maintenance:copy}, the pending updates recorded
+in the VBT are applied to the TMVBT\@.
+The maintenance transaction scans through both structures at the same
+time, using a saved path for the TMVBT and latch-coupling for the VBT\@.
+Because the system transaction is the only transaction updating the TMVBT, no
+latch-coupling on the TMVBT is required, and only one page needs to be
+latched at a time, except during structure-modification operations.
+Because the TMVBT does not have sibling links, the saved path needs to be
+backtracked to locate the next leaf page.
+Pages on the saved path can be safely relatched, because there is no other
+transaction that can update the TMVBT, but pages lower on in the path must
+still be unlatched before latching pages on a higher level to maintain
+top-down, left-to-right ordering on page latching.
+In the \abbr{VBT}, the sibling links assumed in
+\secref{sec:cmvbt:organization} are used to traverse through the leaf
+pages efficiently.
+Because $T_m$ only reads the updates from the VBT at this point,
+it is sufficient to perform a leaf-level scan, and thus no saved path is
+required.
+
+A pending update $(k, v_i, \updatemark)$ is applied on the TMVBT by using the
+actions defined in \secref{sec:tmvbt:actions}.
+If $\updatemark \neq \deletemark$, the action \action{write}$(k, 
+\updatemark)$ is performed; otherwise the action \action{delete}$(k)$ is
+invoked.
+Each update that is performed to the TMVBT is logged using redo-undo
+log records. 
+The log records defined in \secref{sec:tmvbt:actions} could also be used, but
+they contain undo information which is not needed, because the actions of
+the maintenance transaction are never undone.
+The redo-only log record written for a write action, recorded by the pending
+update $(k, v_i, w)$, $w \neq \deletemark$, is thus
+\lrb{T_m}, \logact{apply-write}, $p$, $k$, \movever, \lre{w}, where $p$ is
+the page identifier of the TMVBT page on which the update was performed. 
+Note that the version~\movever\ is used by the TMVBT algorithms when applying
+the update to the TMVBT index, because we require that $\actver = \movever$.
+The redo-only log record written for a delete action, recorded by the pending
+update $(k, v_i, \deletemark)$, is \lrb{T_m}, \logact{apply-delete}, $p$,
+$k$, \lre{\movever}.
+
+Step~\ref{maintenance:stablever} updates the stable version
+variable~$\stablever \gets \movever$. 
+The variable is protected by write-latching the page on which the
+variable is stored.
+At this point we know that all the updates of transaction~$T$ with
+$\commitver{T} = \movever$ have been applied to the TMVBT\@. 
+New read-only transactions can therefore perform queries that target
+the version~\movever\ directly on the TMVBT index.
+% This step therefore acquires a write latch on the page containing the
+% variable, update the variable to $\stablever \gets \movever$, and release the
+% latch.
+To speed up recovery, this action is also logged with a single
+redo-only log record \lrb{T_m}, \logact{increment-stable}, \lre{\stablever},
+and the log is forced onto the disk at this point.
+If this log record is found after a system crash,
+steps~\ref{maintenance:movever}--\ref{maintenance:stablever}  
+of the maintenance transaction are skipped entirely, and the
+maintenance transaction continues at step~\ref{maintenance:delete}
+to finish the transaction.
+
+Next, at step~\ref{maintenance:delete}, the pending updates are deleted from
+the VBT index.
+It is safe to delete these updates, because although deleting the entries may
+cause concurrent user transactions to miss an update they expected to find in
+the VBT, the transactions will find the missed update later on from the
+TMVBT, where it has already been applied to at this point.
+To correctly maintain the structural consistency of the VBT, the tree must be
+traversed from the root, using a saved path, so that structure-modification
+operations can be performed if pages contain too few entries after entry
+deletions.
+During the search, latch-coupling will be applied, first top-down, then
+left-to-right, as explained earlier. 
+The delete action for a pending update $(k, v_i, \updatemark)$ is logged with
+a redo-only log record \lrb{T_m}, \logact{delete-update}, $p$, $k$, \lre{v_i},
+where $p$ is the page identifier of the VBT page on which the pending update
+was located.
+
+Finally, in step~\ref{maintenance:finish}, the temporary transaction
+identifier mapping is removed from the CTI table.
+The maintenance transaction commits by writing a redo-only log record
+\lrb{T_m}, \lre{\logact{commit-maintenance}}. 
+The log must be forced onto disk at this point.
+
+The following theorem states the correctness and complexity of the
+maintenance transaction:
+
+\thmskip
+\begin{theorem}
+\label{theorem:cmvbt:maintenance} 
+Let~$n$ denote the number of updates applied by the earliest
+transient committed transaction with version~\movever, $n_V$ the
+number of pending updates in the VBT and $n_T = \entries{\movever-1}$ the
+number of entries in the TMVBT that are alive at version~$\movever - 1$. 
+The maintenance transaction correctly transforms the transient version
+\movever\ into a stable version by applying the updates of the version
+\movever\ into the TMVBT, and by removing the pending updates from
+the VBT\@. 
+The maintenance transaction requires access to at most \Oh{n_V/\capacity +
+\min \{ n \log_\capacity (n_T + n), (n_T + n)/\capacity\}} pages, where
+\capacity\ is the page capacity.
+\end{theorem}
+\begin{proof}
+The complexity of the maintenance transaction is composed of the VBT and
+TMVBT index scans of steps
+\ref{maintenance:copy}~and~\ref{maintenance:delete}.
+The complexity of both scans of the VBT is the same, \OhT{n_V/B}, because a
+full leaf-level scan of the VBT is required for both of the steps. 
+Maintaining the entire saved path from root to leaf for the VBT in the
+deletion phase does not add to the asymptotic complexity of the scan (see
+the proof of \thmref{thm:btree-range-cost}). 
+Applying the $n$ updates into the TMVBT requires \Oh{n \log_\capacity
+n_T} page accesses in the worst case, because a single update operation in the
+TMVBT requires \OhT{\log_\capacity (n_T + n)} page accesses (see
+\secref{sec:tmvbt:actions}).
+However, the leaf pages of the search tree $S_{\movever-1}$ of the latest
+version of the TMVBT are accessed at most once, so the operation is also
+bound by \Oh{(n_T + n)/\capacity}; that is, a full leaf-level page scan of
+the latest version of the TMVBT plus the new pages created by insertions.
+\end{proof}
+\thmskip
+
+Throughout this chapter, we have assumed that a single thread or process is
+running a single maintenance transaction to apply the updates of a
+single committed transaction from the VBT into the TMVBT at a time.
+If the maintenance transaction becomes a bottleneck for the system, it should
+be possible to extend the algorithms presented here so that multiple threads or
+processes run multiple maintenance transactions concurrently. 
+The multiple maintenance transactions still have to apply all the updates of a
+single committed transaction at a time, before starting to move the updates of
+another committed transaction, because only the updates of a single version can
+be applied to the TMVBT at a time (see \secref{sec:tmvbt:multiupdate}).
+In this approach, the maintenance transactions are set up to scan
+different portions of the VBT index each, and to apply the updates to the TMVBT
+concurrently.
+Because there are now more then one transaction updating the
+TMVBT index, all the updating transactions have to perform latch-coupling while
+traversing the TMVBT index, because the active pages may be modified by a
+concurrent instance of the maintenance transaction.
+
+Another approach for multithreading the maintenance transaction is to allow
+step~\ref{maintenance:delete} of the maintenance transaction for a
+version~$v_1$ to run concurrently with step~\ref{maintenance:copy} for the
+next version~$v_2$. 
+This means that the updates of version~$v_2$ can be applied into the TMVBT at
+the same time as the pending updates of version~$v_1$ are deleted from the
+VBT by another thread, or group of threads.
+
+
+
+%% Summary
+%%---------------------------------------------------------------------
+\section{Summary}
+\label{sec:cmvbt:summary}
+
+We have now described the concurrent MVBT (CMVBT), a general-purpose
+multiversion database structure that can be used concurrently by multiple
+updating transactions.
+The CMVBT is optimal when querying for stable versions, provided that the
+correct root page of the TMVBT index is known (see
+\secref{sec:tmvbt:summary}).
+When querying for transient versions, the separate VBT index must also be
+searched.
+However, because the VBT is expected to remain in main memory during normal
+transaction processing, these queries should not require any additional
+disk \abbr{I/O} operations.
+
+The update actions of user transactions are efficient, because the pending
+updates are inserted into the small VBT index.
+This improves the latency of transactions, but does not increase the overall
+system throughput, because the maintenance transaction still needs to apply
+the pending updates into the main TMVBT index.
+As we will show in the next chapter, the overall performance of the
+CMVBT is on par with the \TSBtree\ of Lomet and
+Salzberg~\cite{lomet:1989:tsb,lomet:1990:tsb-performance,lomet:2005:immortaldb,lomet:2006:transactiontime,lomet:2008:version-compression,lomet:2009:improving},
+indicating that the main-memory-resident VBT index does not affect the
+performance of CMVBT significantly.
+

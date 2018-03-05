@@ -1,0 +1,143 @@
+%%=====================================================================
+%% Conclusions
+%%=====================================================================
+\chapter{Conclusions}
+\label{chapter:conclusions}
+
+A current trend in database systems is that the history of the database
+contents must be accessible, in addition to the current state of the data
+set.
+The traditional single-version \Btree\ index can be straightforwardly
+extended so that multiversion data may be indexed by it, but the versioned
+extension is not efficient, as was shown in \chapref{chapter:mv-index}.
+The problem with this approach is the range-query action, which is
+inefficient because the data items with the same key but with different
+versions are clustered close to each other, while the data items with the
+same version but with different keys are not.
+% the single-key actions (key query, key insertion, and key deletion) on
+% a set of multiversion data can be implemented efficiently with a
+% single-version \Btree\ index
+Efficient indexing of the data set evolution therefore requires a
+multiversion index structure.
+ 
+When querying for any fixed version~$v$, an optimal multiversion index
+structure should be as efficient as a single-version index structure that
+only indexes the data items that are alive at version~$v$. 
+We have defined this as the requirement for optimality
+of multiversion indexes (\defref{def:optimal-mv} in
+\secref{sec:mv-index:optimality}).
+This guarantees that range queries remain efficient even if the database
+accumulates a long history of updates.
+When data items are logically deleted, the range queries that target the
+latest committed version should become more efficient as fewer data items are
+alive.
+Range queries are an important operation in a general-purpose database
+system because index scans and joins are based on them.
+
+We have reviewed three of the most efficient multiversion index structures in
+\chapref{chapter:tsbmvbt}.
+These are the \TSBtree\ of Lomet and
+Salzberg~\cite{lomet:1989:tsb,lomet:1990:tsb-performance}, the multiversion
+\Btree\ (MVBT) of Becker et~al.~\cite{becker:1993:optimal,becker:1996:mvbt},
+and the multiversion access structure (MVAS)
+of Varman and Verma~\cite{varman:1997:multiversion}.
+From these structures, only the MVBT is considered optimal by our definition
+of optimality.
+The problem with MVBT and MVAS is that they follow a single-update model, in
+which the update cannot be rolled back, and therefore these indexes cannot
+be used as general database indexes in a transactional multi-user
+environment.
+On the other hand, the \TSBtree\ does not have this restriction, but it does
+not guarantee any optimal bounds for the range-query performance, either.
+In particular, in the presence of logical deletions, the performance of the
+\TSBtree\ degrades because the leaf pages of the index structure are not
+merged.
+
+As an initial step, we have introduced transactions to the MVBT by
+redesigning it, as described in \chapref{chapter:tmvbt}.
+The redesigned transactional MVBT (TMVBT) index retains the optimal bounds of
+the MVBT and allows one updating multi-action transaction to operate
+concurrently with multiple read-only transactions.
+The TMVBT index is an efficient index structure that is usable on its own in
+situations where there is only a single source of updates, such as in data
+stream management systems.
+
+In \chapref{chapter:cmvbt} we presented the design of our concurrent
+multiversion \Btree\ (CMVBT) index which uses a separate main-memory-resident 
+versioned \Btree~(VBT) index to store the pending updates created by active
+transactions, and a TMVBT index for indexing the data items inserted by
+committed transactions.
+Once an active transaction~$T$ has committed, a system maintenance
+transaction is run to apply the updates of~$T$ from the VBT index
+into the main TMVBT index.
+We say that a version~$v$ is stable, if all the updates of the
+transaction~$T$ that created the version~$v$ have been applied to the TMVBT
+index.
+The CMVBT index is thus optimal when querying for the data items of 
+stable versions, and guarantees that the performance of the queries never
+degrades, even in the presence of deletions.
+The separate VBT index is kept small by constantly moving the
+updates of committed transactions into the TMVBT index.
+The VBT can be kept entirely in main memory during general transaction
+processing, and it does not incur any additional \abbr{I/O} operations.
+
+Our CMVBT algorithms are designed to work in a multi-user environment with
+multiple concurrent updating transactions. 
+We allow transactions to roll back; either entirely, or up to a preset 
+savepoint.
+Standard concurrency-control algorithms can be used to maintain logical
+data consistency.
+The snapshot isolation
+algorithms~\cite{berenson:1995:sql-critique}
+are especially well suited for use with our multiversion index
+structure, and they guarantee snapshot isolation for all transactions. 
+Our algorithms are made recoverable by the ARIES recovery
+algorithm~\cite{mohan:1992:aries,mohan:1992:aries-im}, and we apply
+structure-modification operations on a level-by-level basis, performing each
+SMO as an atomic action that transforms a balanced index into another
+balanced
+index~\cite{jaluta:2003:recoverable,jaluta:2005:blink,jaluta:2006:page-server}.
+
+Because the commit-time version of a data item is not known when the
+transaction that created it is active, the data-item updates must
+initially be tagged with transaction identifiers, which are later 
+changed to commit-time versions.
+The CMVBT index organization allows the data-item versions to be efficiently
+changed from transaction identifiers into commit-time versions when the 
+maintenance transaction moves the updates from the VBT into the TMVBT index.
+This is a non-trivial issue that often requires special book-keeping
+arrangements in other multiversion index structures that support
+commit-time versioning.
+
+We have experimentally analyzed the performance of the CMVBT index
+in \chapref{chapter:performance} and compared it to the performance of the
+\TSBtree.
+The results we obtained from our experiments agree with what we expected
+from our analytical results.
+The CMVBT index structure performs on par with the \TSBtree\ index in
+standard transaction processing, but is more efficient for key-range
+queries.
+The efficiency of the key-range queries is especially apparent if the
+history of the database contains deletions.
+We have furthermore compared the combined CMVBT index to the TMVBT, and
+conclude that the separate VBT index does not affect the overall performance
+significantly.
+For completeness, we have also demonstrated that the performance of 
+range queries degrades rapidly if the multiversion data items are indexed
+by a single-version \Btree\ index.
+
+There is a downside to the optimal performance of the TMVBT index;
+namely, that the index structure requires more space than the \TSBtree.
+While the asymptotic space complexity of all the compared index structures
+is the same, the size of the TMVBT (in itself, and as part of the CMVBT
+index) was \SIrange{10}{60}{\percent} greater than the size of the \TSBtree\
+in our tests, depending on the \TSBtree\ splitting policy and on the number
+of deletions in the database history. 
+Our conclusion is thus that the CMVBT structure is a good choice for a
+general-purpose multiversion index when performance is more important
+than storage space, especially so when it is expected that the history
+will also contain key deletions.
+The \TSBtree\ is a better choice when storage space is limited, particularly
+if historical data is to be stored on a tertiary storage, because the
+\TSBtree\ allows historical pages to be moved during time-splits. 
+

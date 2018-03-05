@@ -1,0 +1,42 @@
+\documentclass[final,a4paper,english,12pt,openright,twoside,pdftex]{tkkdiss-chap}
+
+\usepackage[english,finnish]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[monochrome]{color}
+
+% Add here your own style file(s), needed macro packages etc.
+\usepackage{diss-defs}
+\usepackage[distwoside]{diss-style}
+%\usepackage{diss-style}
+
+\title{\distitle}
+\author{\disauthor}
+\keywords{\diskeywords}
+
+\begin{document}
+
+%%=====================================================================
+%% Document contents
+%%=====================================================================
+\input{toc}
+
+
+%%=====================================================================
+%% Bibliography of the dissertation
+%%=====================================================================
+\hbadness=10000
+\bibliography{references}
+% Restore the default value
+\hbadness=1000
+
+
+%%=====================================================================
+%% Appendices
+%%=====================================================================
+\appendix
+\renewcommand{\chaptername}{Appendix}
+\input{A1-uniform-results}
+\input{A2-gaussian-results}
+
+\end{document}

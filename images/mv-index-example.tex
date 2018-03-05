@@ -1,0 +1,47 @@
+\begin{tikzpicture}[x=3.5em,y=3.7em,every node/.style={font=\small}]
+
+%\fill[blue!50] (-1,-1) rectangle (5,3);
+
+\node[page] (p1) at (0,0) {$p_1$};
+\node[page] (p2) at (1,0) {$p_2$};
+\node[page] (p3) at (2,0) {$p_3$};
+\node[page] (p4) at (3,0) {$p_4$};
+\node[page] (p5) at (4,0) {$p_5$};
+\node[page] (p6) at (0.5,1) {$p_6$};
+\node[page] (p7) at (1.8,1) {$p_7$};
+\node[page] (p8) at (3.2,1) {$p_8$};
+\node[page] (p9) at (2.5,2) {$p_9$};
+
+\node[db] (roots) at (0, 2) {$\rootstarp$};
+
+\draw (p6.south) -- (p1.north);
+\draw (p6.south) -- (p2.north);
+
+\draw (p7.south) -- (p2.north);
+\draw (p7.south) -- (p3.north);
+
+\draw (p8.south) -- (p4.north);
+\draw (p8.south) -- (p5.north);
+
+\draw (p9.south) -- (p7.north);
+\draw (p9.south) -- (p8.north);
+
+\draw[->,densely dotted] (roots) to[bend left=10] (p9.west);
+\draw[->,densely dotted] (roots) to[bend left=10] (p6.north);
+
+\node[anchor=west] at (4.5,0.2) {\footnotesize Leaf pages};
+\draw[dashed] (-1,0.5) -- (7,0.5);
+\node[anchor=west] at (4.5,0.8) {\footnotesize Index pages};
+
+% \draw[densely dotted] ($(p6) + (0,0.5)$) to[controls=+(180:1) and +(0:0.32)] 
+%   ($(p1) + (-0.2,0.5)$) to[controls=+(180:0.32) and +(90:0.2)]
+%   ($(p1) + (-0.5,-0.2)$) to[controls=+(270:0.2) and +(180:1)]
+%   ($(p1) + (0.5,-0.5)$) to[controls=+(0:1) and +(270:0.1)]
+%   ($(p2) + (0.5,-0.2)$) to[controls=+(90:0.1) and +(0:0.32)]
+%   ($(p2) + (0.2,0.5)$) to[controls=+(180:0.32) and +(0:1)]
+%   ($(p6) + (0,0.5)$);
+% 
+% \node[pin={[pin edge=solid,pin distance=1em]110:{\small $S_v$}}] 
+%   at ($(p1) + (-0.05,0.9)$) {};
+
+\end{tikzpicture}

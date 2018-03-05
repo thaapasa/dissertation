@@ -1,0 +1,48 @@
+\begin{tikzpicture}[x=\txfigx,y=\txfigy,every node/.style={font=\footnotesize}]
+  \coordinate (o) at (0,0);
+  \coordinate (oo) at (0,0.2);
+  \coordinate (ox) at ($(oo) + (0,6)$);
+  \coordinate (ov) at ($(oo) + (6,0)$);
+
+  \coordinate (cur) at ($(o) + (4,6.8)$);
+
+  \coordinate[label=left:{$1$}] (oa) at ($(o) + (0,1)$);
+  \coordinate[label=left:{$2$}] (ob) at ($(o) + (0,2)$);
+  \coordinate[label=left:{$3$}] (oc) at ($(o) + (0,3)$);
+  \coordinate[label=left:{$4$}] (od) at ($(o) + (0,4)$);
+  \coordinate[label=left:{$5$}] (oe) at ($(o) + (0,5)$);
+
+  \coordinate[label=below:{$v_1$}] (ov1) at ($(o) + (1,0)$);
+  \coordinate[label=below:{$v_2$}] (ov2) at ($(o) + (2.5,0)$);
+  \coordinate[label=below:{$v_3$}] (ov3) at ($(o) + (4,0)$);
+
+  \coordinate (a1) at ($(oa) + (1,0)$);
+  \coordinate[label=right:{$(1,w_1)$}] (a2) at ($(a1) + (1.5,0)$);
+  \coordinate[label=right:{$(1,w_1')$}] (a3) at ($(a2) + (1.5,0)$);
+
+  \coordinate (b1) at ($(ob) + (1,0)$);
+  \coordinate (b2) at ($(b1) + (1.5,0)$);
+  \coordinate[label=right:{$(2,w_2)$}] (b3) at ($(b2) + (1.5,0)$);
+
+  \coordinate[label=right:{$(3,w_3)$}] (c1) at ($(oc) + (1,0)$);
+  \coordinate (c2) at ($(c1) + (1.5,0)$);
+  \coordinate[label=right:{$(3,w_3')$}] (c3) at ($(c2) + (1.5,0)$);
+
+  \coordinate (d2) at ($(od) + (2.5,0)$);
+  \coordinate[label=right:{$(4,w_4)$}] (d3) at ($(d2) + (1.5,0)$);
+
+  \coordinate[label=right:{$(5,w_5)$}] (e3) at ($(oe) + (4,0)$);
+
+  \draw[-] (oa) -- (a2);
+  \draw[-] (ob) -- (b3);
+  \draw[-] (oc) -- (c1);
+  \draw[-] (c2) -- (c3);
+  \draw[-] (d2) -- (d3);
+
+  \foreach \point in {a1,a2,a3,b1,b2,b3,c1,c2,c3,d2,d3,e3}
+    \fill[black] (\point) circle (2pt);
+
+  \draw[->] (oo) -- node[lbl,above=1em] {Keys} (ox);
+  \draw[->] (oo) -- node[lbl,below=1.3em] {Versions} (ov);
+  \draw[->] (cur) -- ($(cur) + (0,-0.5)$);
+\end{tikzpicture}

@@ -1,0 +1,58 @@
+\begin{tikzpicture}[x=1.5em,y=1.5em,%
+every node/.style={font=\scriptsize},%
+actr/.style={draw,shape=actor,inner sep=1ex,minimum width=3em},%
+action/.style={draw,ellipse,minimum width=5.2em,minimum
+height=2em,font=\tiny,fill=white!100},% 
+actiontext/.style={font=\tiny},
+userarr/.style={densely dashed},
+decoration={markings,mark=at position .75 with {\arrow[line
+width=1pt]{>>}}}, 
+actarr/.style={postaction={decorate}},
+border/.style={draw,shape=rounded rectangle,inner sep=1ex,densely
+dotted,thick}]
+
+\node[border,minimum width=15em,minimum height=14em] (borders) {};
+\node[above=0pt of borders,anchor=north] {CMVBT};
+
+\node[db,minimum height=5em,anchor=north west] (tmvbt) at ($(borders.north
+west) + (1.5ex,-3em)$) {TMVBT};
+
+\node[actr,anchor=south east] (mtx) at ($(borders.south east) + (-1ex,1em)$)
+  {\parbox{6em}{\center Ylläpito\-transaktio}};
+
+\node[action,left=1.5em of mtx.left] (actmove) {};
+\node[actiontext] at ($(actmove) + (0,.9ex)$) {\parbox{8em}{\center Siirrä
+sitoutuneet päivitykset}};
+
+\node[db,above=1.5em of actmove,minimum height=3em] (vbt) {VBT};
+
+\node[action] (actupdate) at ($(borders.east) + (0,1em)$) {};
+\node[action,above=1em of actupdate] (actquery) {};
+\node[actiontext] at (actupdate) {Päivitykset};
+\node[actiontext] at (actquery) {Kyselyt};
+
+\node[actr] (user) at ($(actupdate.east) + (3em,1em)$) {Käyttäjä};
+
+\draw[userarr] (mtx.left) -- (actmove.east);
+\draw[userarr] (user.left) -- (actquery.east);
+\draw[userarr] (user.left) -- (actupdate.east);
+
+\newdimen\cmimx
+\newdimen\cmimy
+
+% Query action - TMVBT
+\pgfextractx{\cmimx}{\pgfpointanchor{tmvbt}{east}}
+\pgfextracty{\cmimy}{\pgfpointanchor{actquery}{west}}
+\draw[actarr] (actquery.west) -- (\cmimx,\cmimy);
+
+% Update action - VBT
+\pgfextractx{\cmimx}{\pgfpointanchor{vbt}{east}}
+\pgfextracty{\cmimy}{\pgfpointanchor{actupdate}{west}}
+\draw[actarr] (actupdate.west) -- (\cmimx,\cmimy);
+
+\draw[actarr] (actquery.west) -- (vbt);
+
+\draw[actarr] (vbt) -- (actmove);
+\draw[actarr] (actmove) -- (tmvbt);
+
+\end{tikzpicture}

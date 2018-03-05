@@ -1,0 +1,44 @@
+\subfigure{
+\begin{tikzpicture}
+\node[rounded rectangle,draw=black!100] (tmvbt) {%
+\contentrows{6}{6.2em}{%
+$(1, [1, 2), w_1)$\\
+$(2, [1,\infty), w_2)$\\
+$(3, [2,3), w_3)$\\
+$(3, [3,\infty), w_3')$\\
+$(4, [3,\infty), w_4)$}};
+\node[above=0pt of tmvbt] {\textbf{TMVBT}};
+
+\node[rounded rectangle,draw=black!100,right=1em of tmvbt] (vbt) {%
+\contentrows{6}{5em}{%
+$(1, 102, w_1')$\\
+$(2, 101, w_2')$\\
+$(4, 103, \deletemark)$\\
+$(4, 104, w_4')$\\
+$(6, 101, w_6)$\\
+$(7, 103, w_7)$}};
+\node[above=0pt of vbt] {\textbf{VBT}};
+
+\node[rounded rectangle,draw=black!100,right=1em of vbt] (cti) {%
+\contentrows{6}{3.4em}{%
+$4 \to 103$\\
+$5 \to 101$}};
+\node[above=0pt of cti] {\textbf{CTI}};
+\end{tikzpicture}
+}
+\subfigure{
+  \begin{tabular}{c}
+  \textbf{History of transactions}\\
+  \begin{tabular}{l}
+  $T_1$, $\commitver{T_1} = 1$: Insert $(1, w_1)$ and $(2, w_2)$\\
+  $T_2$, $\commitver{T_2} = 2$: Insert $(3, w_3)$ and delete item with
+  key~\num{1}\\ 
+  $T_3$, $\commitver{T_3} = 3$: Insert $(3, w_3')$ and $(4, w_4)$\\
+  $T_4$, $\commitver{T_4} = 4$: Insert $(7, w_7)$ and delete item with
+  key~\num{4}\\ 
+  $T_5$, $\commitver{T_5} = 5$: Insert $(2, w_2')$ and $(6, w_6)$\\
+  $T_6$, $\txid{T_6} = 102$: Insert $(1, w_1')$\\ 
+  $T_7$, $\txid{T_7} = 104$: Insert $(4, w_4')$\\ 
+  \end{tabular}\\
+  \end{tabular}
+}

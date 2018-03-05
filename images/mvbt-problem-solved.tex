@@ -1,0 +1,37 @@
+\subfigure[Insert~key~1]{
+\:\:
+\begin{tikzpicture}
+\node[treepage] (p1) {%
+  \treepagecontents{4.5}{$[\!-\infty,\!\infty\!),\![1,\!\infty\!)$}%
+  {$(1, [1,\!\infty\!), w_1\!)$}};
+\treepageheader{p1}{$p_1$}
+\end{tikzpicture}
+\:\:}
+\subfigure[Insert~keys~2--3]{
+\:\:
+\begin{tikzpicture}
+\node[treepage] (p1) {%
+  \treepagecontents{4.5}{$[\!-\infty,\!\infty\!),\![1,\!\infty\!)$}%
+  {$(1, [1,\!\infty\!), w_1\!)$\\
+   $(2, [1,\!\infty\!), w_2\!)$\\
+   $(3, [1,\!\infty\!), w_3\!)$}};
+\treepageheader{p1}{$p_1$}
+\end{tikzpicture}
+\:\:
+}\\
+\subfigure[Insert key~4]{
+\begin{tikzpicture}
+\node[treepage] (p1) {%
+  \treepagecontents{4.5}{$[\!-\infty,\!3),\![1,\!\infty\!)$}%
+  {$(1, [1,\!\infty\!), w_1\!)$\\
+   $(2, [1,\!\infty\!), w_2\!)$}};
+\treepageheader{p1}{$p_1$}
+
+\node[treepage,right=1em of p1] (p2) {%
+  \treepagecontents{4.5}{$[3,\!\infty\!),\![1,\!\infty\!)$}%
+  {$(3, [1,\!\infty\!), w_3\!)$\\
+   $(4, [1,\!\infty\!), w_4\!)$}};
+\treepageheader{p2}{$p_2$}
+
+\end{tikzpicture}
+}

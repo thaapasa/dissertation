@@ -1,0 +1,50 @@
+\pagenumbering{roman}
+% \setcounter{page}{3}
+% Start with plain page style so that the defined page numbering is
+% used
+
+\pagestyle{empty}
+
+\input{00-frontpage}
+
+% Abstracts
+\cleardoublepage
+\input{00-abstracts}
+
+% Dedication
+\cleardoublepage
+\input{00-dedication}
+
+% Preface
+\cleardoublepage
+\pagestyle{plain}
+\input{00-preface}
+
+% Table of contents
+\cleardoublepage
+\tableofcontents
+
+\cleardoublepage
+\input{00-abbreviations}
+
+\cleardoublepage
+\input{00-symbols}
+
+\cleardoublepage
+\listoffigures
+
+
+%%=====================================================================
+%% Actual textual content
+%%=====================================================================
+\pagenumbering{arabic}
+\pagestyle{dissertation}
+
+\input{01-introduction}
+\input{02-mv-data}
+\input{03-mv-index}
+\input{04-tsbmvbt}
+\input{05-tmvbt}
+\input{06-cmvbt}
+\input{07-performance}
+\input{08-conclusions}

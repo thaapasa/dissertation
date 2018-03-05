@@ -1,0 +1,2049 @@
+%%=====================================================================
+%% Transactions on the MVBT
+%%=====================================================================
+\chapter{Transactions on the MVBT}
+\label{chapter:tmvbt}
+\label{def:tmvbt}
+
+As shown in the previous chapter, there are efficient multiversion index
+structures available, but there is no single structure that is both optimal
+and that can be used in a concurrent transactional environment.  
+We reviewed the result by Becker
+et~al.~\cite{becker:1993:optimal,becker:1996:mvbt} that showed that the
+multiversion \Btree~(MVBT) is an optimal multiversion index structure,
+% if the root page of the queried version is known
+% (\secref{sec:tsbmvbt:mvbt})
+but it follows a single-update model, 
+% in which a transaction can only consist of a single update that 
+and the update cannot be rolled back.
+In this chapter, we present our redesigned MVBT, called the
+\emph{transactional multiversion \Btree} (TMVBT)\@.
+The TMVBT adds transactions to the MVBT by redesigning the
+structure-modification operations (SMOs) so that multiple data-item updates
+can be performed within a single transaction, and the updates can be rolled
+back.
+% We show that the optimality of the index structure is preserved, and that
+% each page still contains at least \minlive\ entries that are alive
+% at version~$v$ for all versions in which the page is part of the search
+% tree~$S_v$. 
+% The extended structure-modification operations do not need to access any more
+% pages than the MVBT structure-modification operations.
+% We also show how concurrency-control and recovery algorithms can be used to
+% allow a single updating transaction to operate on the index concurrently with
+% multiple read-only transactions.
+% The TMVBT is thus not yet an optimal general-purpose
+% multiversion database index, because multiple updating transaction cannot
+% operate of the index concurrently.
+% Multiple updating transactions are discussed on the next chapter.
+The TMVBT structure was first introduced in our previous
+article~\cite{haapasalo:2009:tmvbt}.
+In the discussion here, we explain the algorithms in more detail, and provide
+detailed proofs for the properties of the structure.
+
+We begin the chapter by describing the implementation of the transaction
+model of Sections~\ref{sec:mv-data:read-only-tx}
+and~\ref{sec:mv-data:updating-tx} for the TMVBT in
+\secref{sec:tmvbt:multi-action-tx}.
+After that, \secref{sec:tmvbt:active-entries} defines the concept of active
+entries, which is needed for maintaining the optimality in the presence of
+multi-action transactions, and
+\secref{sec:tmvbt:structure} describes the structure of the TMVBT\@.
+In \secref{sec:tmvbt:actions}, we show how the user actions are performed,
+and in \secref{sec:tmvbt:smo}, we describe the structure-modification
+operations triggered by the user actions.
+Finally, in \secref{sec:tmvbt:multiupdate}, we illustrate why we cannot
+allow multiple updating transactions to operate on the index concurrently,
+and in \secref{sec:tmvbt:summary}, we summarize the discussion on the TMVBT
+index.
+
+
+%% Multi-Action Transactions
+%%---------------------------------------------------------------------
+\section{Multi-Action Transactions}
+\label{sec:tmvbt:multi-action-tx}
+
+We allow two kinds of transactions to operate on the TMVBT concurrently: 
+any number of read-only transactions (as defined in
+\secref{sec:mv-data:read-only-tx}) and at most one updating transaction (as
+defined in \secref{sec:mv-data:updating-tx}) at a time. 
+For reasons explained in \secref{sec:tmvbt:multiupdate}, we cannot allow more
+than one updating transaction to operate on the TMVBT at a time.
+Concurrent updating transactions are discussed in the next chapter.
+
+In contrast to the MVBT (\secref{sec:tsbmvbt:mvbt}), each updating
+transaction operating on the TMVBT can perform any number of updates, and the
+updates all receive the same version.
+Because only one updating transaction can operate on the TMVBT at a time, the
+commit order of the transactions is known during the execution of the
+transactions, and each data-item update can be directly performed with the
+correct transaction-time version.
+In the context of the TMVBT, we use the term \emph{version} to denote these
+transaction-time instants. 
+This does mean, however, that the version assigned to an updating
+transaction cannot be based on the real time instant of the commit action,
+because that is not known at the beginning of the transaction.
+We thus assume that the versions used in the TMVBT are increasing
+integer numbers that are assigned at the beginning of the updating
+transaction.
+The versions can be based on an increasing counter value or they can be based
+on the real-time instant of the begin action of the transaction, as long as
+they are increasing values.
+For simplicity, in the discussions in this chapter, we assume that the
+active version variable (defined below) is based on an integer value that is
+incremented by one each time a new updating transaction begins.
+
+Like the MVBT, the TMVBT also maintains a commit version variable~\comver\
+that records the version of the latest committed transaction.
+The TMVBT also maintains an active version
+variable~\actver\phantomsection\label{def:actver} that holds the version
+of the current updating transaction.
+If there is no active updating transaction operating on the index, $\actver =
+\comver$.
+When an updating transaction starts, the active version variable is
+incremented, $\actver \leftarrow \actver + 1$.
+When the single updating transaction commits, the commit version is
+incremented to match the active version variable $\comver \leftarrow
+\actver$.
+These version variables therefore tell whether there is an active updating
+transaction running on the TMVBT index: if the active version variable is
+larger than the commit version variable, then there is an updating
+transaction running, and no other updating transaction can begin.
+Read-only transactions can always target any version that is less than
+or equal to the commit version~\comver, unless purging of old versions is
+implemented (see discussion in \secref{sec:tsbmvbt:mvbt} and in the MVBT
+articles~\cite{becker:1993:optimal,becker:1996:mvbt}).
+In that case, the minimum version that can be accessed must also be
+maintained in a separate variable.
+
+The transaction model used for the TMVBT is the transaction model
+explained in Sections~\ref{sec:mv-data:read-only-tx}
+and~\ref{sec:mv-data:updating-tx}.
+The log records written by a transaction~$T$ for the actions presented here
+must also contain the transaction identifier \txid{T}.
+Because the common form of log records
+\lrb{T}, \logact{action}, \lre{\ldots} already contains the identifier~$T$,
+we use $T$ to mean that the transaction identifier $\txid{T}$ is written in
+the log records.
+The control actions of the transaction model are implemented as shown below;
+the query and update actions are discussed in \secref{sec:tmvbt:actions}.
+
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+
+  % Begin
+  \item \action{begin-read-only}$($version~$v)$: begins a new read-only
+  transaction; this action takes a short-duration read lock on the~\comver\
+  variable, checks if $v \leq \comver$, and records the value $\snapver{T}
+  \leftarrow v$ for the transaction. 
+  If $v > \comver$, the transaction is aborted.
+ 
+  % Begin
+  \item \action{begin-update}: begins a new updating transaction~$T$; this
+  action takes a commit-duration write lock on the active version
+  variable~\actver, increments the variable $\actver \leftarrow \actver +
+  1$, and assigns it to the transaction: $\txid{T} \leftarrow \actver$.
+  A redo-undo log record \lrb{T}, \logact{begin}, $v$, \lre{\actver} is
+  written, with $v$ denoting the previous value of the variable~\actver,
+  but the log is not forced to disk. 
+
+  % Commit
+  \item \action{commit-update}: commits the active updating transaction~$T$ 
+  by  
+  (1)~taking a commit-duration write lock on the committed version 
+  variable~\comver, 
+  (2)~updating the variable $\comver \leftarrow \actver$; 
+  (3)~writing a log record \lrb{T}, \logact{commit}, \lre{\comver}; 
+  (4)~forcing the log onto disk; and
+  (5)~calling the release-version action.
+
+  % Version release
+  \item \action{release-version}: this action does nothing, because the
+  updating transaction has already assigned correct versions to each updated
+  data item entry.
+  If the versions of the TMVBT index should be timestamps that are based on
+  the time of the commit action (which is not known at the beginning of the
+  updating transaction), then this action can perform the necessary changes
+  to update the entries.
+
+  % Abort
+  \item \action{abort}: labels the updating transaction as aborted and
+  starts the backward-rolling phase.
+  This action writes the log record \lrb{T}, \lre{\logact{abort}}.
+
+  % Finish-rollback
+  \item \action{finish-rollback}: finishes the rollback of an aborting
+  transaction by decrementing the active version variable $\actver \leftarrow
+  \actver - 1$, writing a log record
+  \lrb{T}, \logact{finish-rollback}, \lre{\actver}, and 
+  forcing the log to disk.
+
+\end{itemize}
+ 
+% (1)~when an updating transaction~$T$ begins, the \actver\ variable is
+% incremented and assigned to the transaction, $\txid{T} \to
+% \actver$;
+% (2)~when the updating transaction commits, the same version \actver\ is used
+% as the commit-time version of the transaction; and
+% (3)~the version release method does nothing, because all the items already
+% have the correct version.
+
+All the update actions of an updating transaction are logged using
+the write-ahead logging protocol as in
+\abbr{ARIES}~\cite{mohan:1992:aries}\@.
+In addition to the log records described above, redo-undo log records are
+written for an \action{insert} action and a \action{delete} action, 
+while redo-only log records are written for an \action{undo-insert} action
+and an \action{undo-delete} action.
+These log records are described in \secref{sec:tmvbt:actions}. 
+A read-only transaction does not create any log records; it only stores
+transient control information in the active-transactions table when it
+begins, and removes that information when it commits.
+
+
+%% Active Entries 
+%%---------------------------------------------------------------------
+\section{Active Entries}
+\label{sec:tmvbt:active-entries}
+
+Recall from \figref{fig:mvbt-invalid-split} on
+page~\pageref{fig:mvbt-invalid-split} the problem of inserting multiple
+data-item entries into the MVBT index with the same version.
+When performing a version-split operation on page~$p$, a new copy~$p'$ of the
+page is created and the life span of the original page~$p$ is truncated to
+the current version and the page is left as it is for use in historical
+queries. 
+If the page~$p$ was created by the same transaction that triggers the
+version split, the life span of the page will degenerate into an empty range,
+and the page will thus not be part of any search tree in the database.
+In these situations, the key split can be performed directly on the
+page~$p$, without applying the version-split operation first.
+
+Let us now define the concepts of active entries and active pages to
+classify the situations where a version-split operation is not required and
+in fact must not be performed. 
+Remember that the single updating transaction always has the version~\actver\
+as its identifier and uses that version to stamp the data-item updates
+and structure-modification operations.
+
+\thmskip
+\begin{definition}
+\label{def:active-entries-pages}
+An \emph{active entry} (or \emph{active page}, respectively) in the TMVBT
+index is an entry (page) that has a life span of $[\actver, \infty)$. 
+An active entry (page) has been created earlier on by the same updating
+transaction.
+Entries (pages) that are not active are called \emph{inactive entries}
+(\emph{inactive pages}).
+\end{definition}
+\thmskip
+
+As stated in the previous chapter, read-only transactions may only read
+versions that have a commit-time version of at most \comver.
+This leads to the following observation:
+
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-read-only-inactive}
+Read-only transactions in the TMVBT index only read inactive entries and
+pages. 
+Active entries and pages are only seen by the single active updating
+transaction.
+\end{invariant}
+\thmskip
+
+If the active updating transaction is deleting an active entry, the entry can
+be physically removed from the index, instead of changing its life span.
+This does not invalidate partial persistence, because the active entry was
+created by the same transaction, and thus did not exist before the updating
+transaction first inserted it.
+Updates that are internal to the transaction are not visible outside
+the transaction and must not consume space in the index.
+
+\thmskip
+\begin{invariant}
+\label{inv:active-entries-physical-delete}
+When a single updating transaction~$T$ deletes an active entry (created by
+$T$), the entry is physically removed from the TMVBT index.
+Similarly, if $T$ updates an active entry it physically removes the old entry
+and creates a new active entry to replace the old one.
+\end{invariant}
+\thmskip
+
+When performing a version-split operation on a page~$p$ at version~$v$ in the
+original MVBT index, Becker et~al.\ suggested that the
+entries that are left in page~$p$ may be left
+unmodified~\cite{becker:1996:mvbt}, so that the life spans of the
+entries~$e_i$ that were alive at version~$v$ remain unbounded on the above;
+that is, of the form $[v_i, \infty)$, where $v_i < v$.
+This does not affect any queries, because only historical queries targeting
+versions $v' < v$ will ever end up in the historical page~$p$; thus, even if
+an entry~$e_i$ is deleted by a transaction with a version $v'' > v$, the
+queries targeting those newer versions will never encounter the now-outdated
+entry~$e_i$ on the historical page~$p$. 
+However, if a transaction~$T$ stores a previously used path as a saved path
+(see p.~\pageref{def:saved-path}) and reuses the path later on, it is
+possible that the pages in the saved path are no longer valid.
+The transaction~$T$ cannot ascertain the validity of the pages unless the
+consistency of the life spans of all the entries and pages is maintained, so 
+that the deletion times of entries in historical pages are set to the
+deletion time of the historical page. 
+In the TMVBT index, we explicitly require that the life spans of entries that
+are left on a historical page are cropped so that they end at the version
+during which the page was split:
+
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-live-entry-copy}
+When a page~$p$ in the TMVBT index is version-split into a new page~$p'$ at
+version~\actver, all live entries $(k, [v, \infty), w)$ such that $v <
+\actver$ are processed as follows: 
+a live copy $(k, [\actver, \infty), w)$ is created and inserted into the new
+live page~$p'$, and the live entry at page~$p$ is changed to the historical
+entry $(k, [v, \actver), w)$.
+All active live entries of the form $(k, [\actver, \infty), w)$ are physically
+moved to the new page~$p'$.
+\end{invariant}
+\thmskip
+
+This invariant is required in order that the key-version regions of all
+the entries of a given level of the TMVBT index do not overlap, as shown in
+\figref{fig:mvbt-space-partition} on page~\pageref{fig:mvbt-space-partition}.
+By adhering to these rules, we can also obtain the following lemmata: 
+
+\thmskip
+\begin{lemma}
+\label{lemma:active-pages-active-entries}
+Active pages in the TMVBT only contain active entries.
+\end{lemma}
+\begin{proof}
+An active page is a page that was created by the active updating transaction.
+When the transaction commits, the page immediately becomes inactive.
+When an active page~$p$ was created, all the live entries that were copied to
+it were changed so that their life spans start at the split boundary
+(i.e., at version~\actver), thus making the copies of the entries active.
+If the active entries are changed in any way by the same transaction, they
+will be physically deleted or replaced by new active entries, as per
+\invref{inv:active-entries-physical-delete}.
+\end{proof}
+\thmskip
+
+\thmskip
+\begin{lemma}
+\label{lemma:active-pages-single-parent}
+Active pages have at most one parent.
+\end{lemma}
+\begin{proof}
+Multiple parents in a multiversion index are caused by multiple routers to
+the same page~$p$ in the index pages above the page~$p$.
+When an active page~$p$ is created, a new index entry $i_p$ is inserted to the
+parent page~$p'$. 
+Note that the index entry~$i_p$ is also active, and will remain active until
+the current active transaction commits.
+When the current transaction commits, both the entry~$i_p$ and the page~$p$
+will immediately become inactive.
+By \invref{inv:tmvbt-live-entry-copy}, active entries are physically moved
+during a version-split operation.
+If the parent page~$p'$ is version-split before the active transaction
+commits, the index entry $i_p$ is physically moved to the new page,
+thereby preventing the creation of new copies of~$i_p$.
+Because there can be only a single index entry~$i_p$ pointing to an
+active page~$p$, active pages can only have a single parent.
+\end{proof}
+\thmskip
+
+All the entries of active TMVBT pages have the same life span of $[\actver,
+\infty)$. 
+This holds for both leaf pages and index pages, and is illustrated in
+\figref{fig:tmvbt-active-entries}.
+Because of this fact, we can in fact disregard the life spans of entries when
+performing an operation on active pages: in effect, we can treat active pages
+as if they were pages in a non-versioned \Btree\ index.
+The extended TMVBT algorithms are based on this observation.
+The algorithms themselves are explained in detail in \secref{sec:tmvbt:smo}.
+
+\begin{figure}[!htb]
+\begin{center}
+\subfigure[Active index entries]{\input{images/tmvbt-active-index-entries.tex}
+\label{fig:tmvbt-active-entries:index}}
+\subfigure[Active leaf entries]{\input{images/tmvbt-active-leaf-entries.tex}
+\label{fig:tmvbt-active-entries:leaf}}
+\figcaption{Active entries in the TMVBT index}%
+{The index page contains three index entries with routers to pages $p_1$,
+$p_2$, and $p_3$.}
+\label{fig:tmvbt-active-entries}
+\end{center}
+\end{figure}
+
+For an example, let us review the problem scenario in MVBT as depicted in
+\figref{fig:mvbt-invalid-split} on page~\pageref{fig:mvbt-invalid-split}.
+In the TMVBT, the page~$p_1$ is active, and thus it can be key-split directly
+without version-splitting it first.
+The operation of the same transaction, executing on the TMVBT index, is shown
+in \figref{fig:mvbt-invalid-split-solved}.
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mvbt-problem-solved}
+  \figcaption{Key split without version split in the TMVBT}%
+  {A key-split is triggered by the insertion of key~\num{4}.
+  The leaf page contains three entries, namely $e_1$, $e_2$, and $e_3$.
+  The format of the page header is key range, life span; 
+  and the format of the entries is (key, life span, data).}
+  \label{fig:mvbt-invalid-split-solved}
+\end{center}
+\end{figure}
+
+
+%% Transactional Multiversion B-tree
+%%---------------------------------------------------------------------
+\section{Transactional Multiversion \Btree}
+\label{sec:tmvbt:structure}
+
+As we explained in the previous chapter, only the MVBT
+index~\cite{becker:1993:optimal,becker:1996:mvbt} can be
+considered optimal when updating transactions follow a single-update model,
+although the MVAS of Varman and Verma has access cost guarantees that are close
+to optimal ($m$-optimal, see \secref{sec:tsbmvbt:mvas}).
+We have chosen the MVBT as the basis of our work, instead of the MVAS,
+because
+(1)~the page reusing rules of the MVAS make the structure of the pages more
+complicated without improving the space complexity bounds, 
+(2)~the lack of a separate \rootstar\ structure makes history queries less
+efficient, and
+(3)~the access list incurs a high maintenance cost.
+Nevertheless, the improvements presented in this chapter could also be
+implemented on the MVAS index structure.
+
+The \emph{transactional multiversion \Btree} (TMVBT) index, which was first
+introduced in our previous article~\cite{haapasalo:2009:tmvbt}, is a directed
+acyclic graph with multiple root pages that is based on the multiversion
+\Btree\ of Becker et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}.
+The original MVBT structure was reviewed in \secref{sec:tsbmvbt:mvbt}.
+The different roots of the TMVBT index are stored in a \rootstar\ structure,
+exactly as in the MVBT index.
+The page format in the \abbr{TMVBT} is identical to that of the MVBT, with
+the addition of recovery information required for our \abbr{ARIES}-based
+recovery algorithm, such as a Page-LSN field that stores the log
+sequence number (LSN) of the log record
+of the latest update on the page. 
+We assume that each page~$p$ explicitly stores the life span $\vr{p}$,
+the key range $\kr{p}$, and also the height of the page.
+%, denoted $\height{p}$. 
+The height of a page is one for all leaf pages, and greater 
+% $\height{p} > 1$ 
+for index pages.
+
+As discussed in \secref{sec:tsbmvbt:mvbt}, the MVBT has three variables that
+determine how many live entries there are in each page and how often pages
+are split or merged.
+These variables are used in the TMVBT in the same meaning.
+The variable \minlive\ determines the minimum number of live entries that
+must be present in each live page (see \invref{inv:mvbt-live-count} on
+page~\pageref{inv:mvbt-live-count}), and variables \minsplit\ and \maxsplit\
+%, $\minsplit < \maxsplit$, 
+control how many live entries must be present in each live page created by a
+structure-modification operation. 
+Becker et~al.\ use the term \emph{weak version condition} to refer to the
+first requirement, and the term \emph{strong version
+condition}\phantomsection\label{def:strong-version} to refer to the
+second~\cite{becker:1993:optimal,becker:1996:mvbt}.
+
+The variables \minsplit\ and \maxsplit\ are defined as 
+$\minsplit = \minlive + s$, and $\maxsplit = \capacity - s$, where $s$~is
+a \emph{split tolerance variable} that determines how many actions must at
+least be performed on the page before a new structure-modification operation
+is required.
+If the strong version condition holds, then at least $s$~entries can be
+deleted from the page before the number of live entries falls below \minlive,
+and similarly at least~$s$ entries can be inserted to the page before the page
+becomes full.
+In effect, $s$~is used to prevent thrashing.
+When a page has more than \maxsplit\ entries immediately after a
+version-split, it will be key-split into two pages. 
+We thus require that $\maxsplit \geq 2 \times \minsplit$ so that the two new
+pages will have at least \minsplit\ entries each.
+
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-minsplit-maxsplit}
+All the live pages at level~$l$ that are involved in a structure-modification
+operation that targets a page~$p$ at level~$l$ must contain
+from \minsplit\ to \maxsplit\ live entries immediately after the \abbr{SMO}\@.
+\end{invariant}
+\thmskip
+
+Note that these requirements do not need to hold for the parent page~$q$ at
+level $l+1$, because only a small constant number of updates is applied to it
+during any SMO\@.
+The router entries in a parent page are only updated by the SMOs at a lower
+level, so the updates performed on the parent page~$q$ correspond to inserting
+or deleting entries from a leaf page.
+
+The values chosen to the variables affect the size of the index structure and
+the frequency of structure-modification operations. 
+It is theoretically possible to set \minlive\ as high as $\capacity/2$, if $s
+= 0$, but this means that thrashing is not prevented.
+The upper limit of the value of $s$ is $\capacity/3$, but with this setting
+$\minlive = 0$ and thus the optimality constraints are lost.
+For the discussion in this dissertation, we assume that the following values
+are used: $\minlive = \nicefrac{1}{5}\, \capacity$, $s = \nicefrac{1}{5}\,
+\capacity$, $\minsplit = \minlive + s = \nicefrac{2}{5}\, \capacity$, and
+$\maxsplit = \capacity - s = \nicefrac{4}{5}\, \capacity$.
+
+Although the representations of the variables differ from the
+definition used by Becker et~al., we can show that the variables are the
+same as in the \abbr{MVBT} article~\cite{becker:1996:mvbt}. 
+Becker et~al.\ require that $\minlive = d = \capacity/k$, $\minsplit =
+(1 + \epsilon) \times d$ and $\maxsplit = (k - \epsilon) \times d$, where
+$k$ and $\epsilon$ are variables that can be selected.
+If we assign $s = \epsilon d$, we obtain $\minsplit = d + \epsilon d =
+\minlive + \epsilon d = \minlive + s$, and $\maxsplit = k d - \epsilon
+d = \capacity - s$, which are the definitions used here.
+
+For optimality of the index structure, we wish to keep the structure of
+the TMVBT index as close to the MVBT index as possible.
+Most importantly, we wish to maintain \invref{inv:mvbt-live-count}, so that
+all pages of each search tree~$S_v$ contain at least \minlive\ entries that
+are alive at version~$v$, for all versions~$v$.
+Let us first restate \invref{inv:mvbt-static-entries} for the TMVBT:
+
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-static-inactive-entries}
+All inactive entries in the TMVBT pages remain in place. 
+They are never moved to another page.
+Only the deletion time of an inactive entry may be changed, always to the
+current active version~\actver.
+Active entries in the TMVBT pages may be physically deleted,
+updated, or moved to another page (see
+Invariants~\ref{inv:active-entries-physical-delete}
+and~\ref{inv:tmvbt-live-entry-copy}).
+\end{invariant}
+\thmskip
+
+This means, in practice, that the structure of the search tree~$S_v$ of a
+version~$v$ can only change when $v = \actver$.
+After $T$ commits, version~$v$ becomes inactive, and the structure of
+the search tree~$S_v$ becomes static.
+By this we mean that the set of pages that forms the search tree~$S_v$ can
+no longer change, and the entries that are alive at version~$v$ are 
+never physically deleted or moved to another page. 
+If we design the algorithms in such a way that the search tree of the active
+version is balanced (\defref{def:consistent-balanced}) in all situations,
+this implies that search trees of all versions are balanced, and thus
+optimal.
+This follows from the fact that the search tree~$S_v$ of the active
+version is balanced immediately before the active transaction commits and thus
+also at the moment version~$v$ becomes inactive. 
+Furthermore, because inactive search trees are static, $S_v$ will always remain
+balanced. 
+We will show in the next sections that the TMVBT algorithms maintain 
+\invref{inv:mvbt-live-count} for the TMVBT\@.
+This, together with the observation that all the root-to-leaf paths in the
+search tree~$S_v$ are always of the same length, implies that the balance
+conditions of the active-version search tree are also maintained.
+
+% TMVBT live count
+\thmskip
+\begin{invariant}
+\label{inv:tmvbt-live-count}
+\invref{inv:mvbt-live-count} holds for the TMVBT index.
+That is, for all versions~$v$ and all pages~$p$, page~$p$ contains at least
+\minlive\ entries that are alive at version~$v$; or $p$ is a root page of
+$S_v$, in which case it contains at least \num{2}~entries that are alive at
+version~$v$; or $p$ is the only page of $S_v$ and contains at least one entry
+that is alive at version~$v$; or $p$ is not part of the search tree~$S_v$ and
+therefore contains no entries that are alive at version~$v$.
+\end{invariant}
+\thmskip
+
+Figures~\ref{fig:example-oper-1}--\ref{fig:example-oper-3} show
+an example of the TMVBT page operations. 
+In this illustrative example, the index is structurally consistent and
+balanced, with suboptimal settings of $\minlive = 1$ and $s = 1$ for a page
+capacity of $\capacity = 5$. 
+All the following examples have been generated by our visualization
+software \TreeLib\ (see \chapref{chapter:performance}). 
+Pages $p_1$, $p_2$, and $p_4$ are not shown in the figures, because  
+$p_1$ and $p_2$ are used as database information pages, and page
+$p_4$ is the root page of the \rootstar\ index. 
+
+\begin{figure}[!hbt]
+\begin{center}
+  \input{images/tmvbt-oper-1}
+  \figcaption{Example of a TMVBT index after insertions}
+  {
+  The page header shows the page identifier followed by the key range
+  and version of the page; 
+  the format of index-page entries is (key range, life span, page
+  identifier); and 
+  the format of leaf-page entries is (key, life span, data), but
+  the associated data has been left out for clarity. 
+  This TMVBT has been created by transaction~$T_1$
+  inserting keys~\range{1}{6} and transaction~$T_2$ inserting
+  keys~\num{7} and~\num{8}.
+  }
+  \label{fig:example-oper-1}
+\end{center}
+\end{figure}
+
+In \figref{fig:example-oper-1}, the index contains six inactive live
+entries inserted by transaction~$T_1$ (entries with keys \range{1}{6}), and
+two active entries inserted by transaction~$T_2$ (entries with keys \num{7}
+and \num{8}). 
+During the execution of~$T_1$, the leaf page~$p_3$ was key-split into
+pages~$p_3$ and~$p_5$, and a new root page~$p_6$ was created, thus
+incrementing the height of the search tree~$S_1$ by one.
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-oper-2}
+  \figcaption{\abbr{TMVBT} after inserting a data item with key~\num{9}}
+  {
+  The format of the figure is the same as in \figref{fig:example-oper-1}.
+  White rectangles denote live pages, and gray rectangles denote dead pages.
+  Transaction~$T_2$ has caused a version-split on~$p_5$ by inserting
+  key~\num{9}.}
+  \label{fig:example-oper-2}
+\end{center}
+\end{figure}
+
+\figref{fig:example-oper-2} shows the result of a version split
+after transaction~$T_2$ tried to insert key~\num{9} to the full page~$p_5$. 
+The page~$p_5$ was version-split into pages $p_7$~and~$p_8$.  
+The historical entries are left stored in the dead page $p_5$, and active
+copies of the entries have been created into pages~$p_7$ and~$p_8$.
+Note that all the active entries have been physically moved away from
+page~$p_5$.
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-oper-3}
+  \figcaption{\abbr{TMVBT} after deleting most of the entries}
+  {Transaction~$T_2$ deleted keys~\range{4}{9}, thus shrinking
+  the current-version search tree to a single page.}
+  \label{fig:example-oper-3}
+\end{center}
+\end{figure}
+
+\figref{fig:example-oper-3} shows the status of the database after
+transaction~$T_2$ has deleted entries \range{4}{9}. 
+Deleting the active entries has caused the number of live entries in
+pages~$p_7$ and~$p_8$ to fall below \minlive, so the pages have been
+consolidated by merging them.
+In more detail, first~$p_7$ was merged with~$p_8$ by moving the active
+entries of~$p_7$ to~$p_8$, which caused~$p_7$ to be deallocated. 
+Note that also the active router to~$p_7$ was deleted from the parent
+page~$p_6$. 
+When the rest of the entries in~$p_8$ were deleted, page~$p_8$ was further
+merged with $p_3$ by killing the page~$p_3$ and by creating active copies of
+the live entries in~$p_3$ into~$p_8$. 
+As we will show in~\secref{sec:tmvbt:smo}, the algorithms actually created
+a new live copy of~$p_3$ when killing it (call it $p_9$), and the active live
+copy~$p_9$ was then merged with~$p_8$, causing $p_9$ to be deallocated.
+At this point~$p_8$ was the only live page at level~\num{1}, so the height of
+the current-version search tree~$S_2$ was decremented by making
+$p_8$ the root page of version~\num{2}. 
+The auxiliary structure \rootstar\ now contains page identifiers of root
+pages $p_6$ (for version~\num{1}) and $p_8$ (for version~\num{2}).
+
+A more diverse example of a TMVBT index is shown in
+Figures~\ref{fig:tmvbt-example:1}--\ref{fig:tmvbt-example:3}, with the same
+settings used as in the previous examples. 
+This example has been generated by our visualization software with
+the action sequence given below:
+
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+  \item Transaction~$T_1$: insert data items with keys~\range{1}{9}
+  (\figref{fig:tmvbt-example:1}).
+  \item Transaction~$T_2$: delete data items with keys~\range{7}{9}
+  (\figref{fig:tmvbt-example:2}); insert data items with keys~\range{10}{15}
+  (\figref{fig:tmvbt-example:3}).
+\end{itemize}
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-1}
+  \figcaption{Example of a TMVBT index after insertions}{In this
+  figure, transaction $T_1$ has inserted keys \range{1}{9}.}
+  \label{fig:tmvbt-example:1}
+\end{center}
+\end{figure*}
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-2}
+  \figcaption{Example of a TMVBT index after deletions}{In this
+  figure, transaction $T_2$ has deleted keys \range{7}{9}.}
+  \label{fig:tmvbt-example:2}
+\end{center}
+\end{figure*}
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-3}
+  \figcaption{Example of a TMVBT index after more insertions}{In this
+  figure, transaction $T_2$ has inserted keys \range{10}{15}.}
+  \label{fig:tmvbt-example:3}
+\end{center}
+\end{figure*}
+
+The transactions on this TMVBT index have induced the following 
+structure-modification operations:
+
+\begin{itemize}
+  \setlength{\itemsep}{0pt}
+  \item The first six insertions by transaction~$T_1$ have triggered a
+  key-split, splitting page~$p_3$ to~$p_3$ and~$p_5$. 
+  At this point, the root page~$p_6$ was created to hold the routers to these
+  pages, and \rootstar\ was updated by replacing the page
+  identifier stored for version~\num{1} from $p_3$ to $p_6$.
+  \item The further three insertions by~$T_1$ have triggered another
+  key-split on~$p_5$, creating the new leaf page~$p_7$. 
+  The situation after these SMOs is depicted in \figref{fig:tmvbt-example:1}.
+  \item After~$T_2$ has deleted the entries with entries \range{7}{9}, a 
+  page-merge operation was triggered on~$p_7$ to merge the page with~$p_5$. 
+  Because both of these pages were inactive, they were first killed, creating
+  two new active pages. 
+  These were then merged into the active leaf page~$p_8$.
+  The situation after this SMO is shown in \figref{fig:tmvbt-example:2}.
+  \item The insertions by~$T_2$ further induced two page splits; first on the
+  active page~$p_8$, creating the active page~$p_9$; and then on~$p_9$,
+  thus creating page~$p_{11}$.
+  \item Insertion of the router to~$p_{11}$ to the parent page~$p_6$ caused a
+  split operation on the parent page~$p_6$. 
+  Because~$p_6$ was inactive, it was first version-split into~$p_{10}$.
+  At this point~$p_{10}$ had enough space to hold the router to $p_{11}$,
+  so~$p_{10}$ was not further key-split into two pages.
+  The page identifier $p_{10}$ was inserted to the \rootstar\ to mark that the
+  root page of version~\num{2} differs from the root page of version~\num{1}.
+  The situation after these SMOs is shown in \figref{fig:tmvbt-example:3}.
+\end{itemize}
+
+\figref{fig:tmvbt-example:3} shows that the page~$p_3$ containing entries
+with keys \range{1}{3} is shared by both roots of the TMVBT index. 
+Note that page~$p_3$ is alive but not active, because $\actver = 2$ 
+(assuming that transaction $T_2$ has not yet committed), and $p_3$ has a
+life span other than $[2, \infty)$.
+It is thus possible for this page to have more than one parent. 
+The pages $p_8$ to $p_{11}$ are active and only contain entries of
+the most recent version. 
+Also note that the index page~$p_{10}$ is active even though it contains a
+router to the inactive page~$p_3$, because the router itself is active.
+
+
+% LinkRef cannot be used with TMVBT
+In the previous chapter, we briefly discussed efficient version-range queries
+(i.e., \qtype{$x$/$-$/range} queries) on the MVBT index structure.
+These were introduced by van~den~Bercken and
+Seeger~\cite{bercken:1996:multiversion}.
+Even though the TMVBT is based on the MVBT index, the most efficient
+\LinkRef\ technique cannot be used with the TMVBT index.
+This is because the technique relies on storing links to historical pages
+that temporally precede a page~$p$.
+In the MVBT, each page can have at most two temporal predecessors (see the
+discussion in the end of \secref{sec:tsbmvbt:mvbt}), and the links to those
+pages can therefore be tracked.
+In the TMVBT, pages can have an unlimited number of temporal predecessors,
+because merging active pages combines the temporal predecessors of the
+merged pages.
+
+
+%% User Actions
+%%---------------------------------------------------------------------
+\section{User Actions}
+\label{sec:tmvbt:actions}
+
+Having defined the transactions and the structure of the TMVBT index, we
+will now describe the implementation of the user actions in this section.
+As a general rule, we assume that the physical consistency of the database
+during normal processing is maintained by short-duration
+latching~\cite{mohan:1992:aries} of pages, so that the server process or
+thread that executes a transaction keeps a page~$p$ read-latched for the time
+a read action is performed on~$p$, and write-latched for the time an update
+action is performed.
+We also assume that the buffer manager applies the standard
+steal-and-no-force buffering policy~\cite{gray:1993:transactionprocessing}.
+These assumptions are in accordance with the \abbr{ARIES} recovery
+algorithm~\cite{mohan:1992:aries}.
+No logical key-level locking is required for the TMVBT, because 
+(1)~for read-only transactions, the historical versions that the read-only
+transactions read are never deleted from the index; and 
+(2)~for updating transactions, there can be only one updating transaction
+operating on the index at a time. 
+
+% We also assume that only the single active updating transaction can perform
+% any updates on the index structure.
+% The undo actions performed during restart recovery are thus performed by an
+% updating system transaction which prevents new updating transactions from
+% beginning before restart recovery is finished.
+% Furthermore, this also means that historical version
+% purging~\cite{becker:1996:mvbt} cannot be performed concurrently with the
+% updating transactions. 
+% If historical version purging is desired as a background process that can be
+% run concurrently with the updating transaction, then the latching policy
+% described in this section is not sufficient.
+% Rather, the updating transaction must also read-latch pages to
+% prevent collisions with the concurrent version purging process.
+
+The global version variables~\comver\ and~\actver\ are maintained
+in the permanent database and their reading and writing is protected
+by locking. 
+A \action{begin-read-only} action acquires a short-duration read lock
+on~\comver\ for reading its value, and a \action{commit-update}
+action acquires a commit-duration write lock on it for incrementing
+its value. 
+A \action{begin-update} action acquires a commit-duration write lock
+on~\actver, thus guaranteeing that at most one updating
+transaction is active at a time.
+The decrement of \actver\ in a \action{finish-rollback} action 
+is performed under the protection of that lock.
+The \action{begin-read-only} and \action{commit-read-only} actions do not
+write any log records, because read-only transactions do not involve any
+logging.
+
+In a fully dynamic index structure in which any inserted data can be
+physically deleted at any time,
+\emph{latch-coupling} (called \emph{crabbing} by Gray and
+Reuter~\cite{gray:1993:transactionprocessing}) is the standard way to
+guarantee the validity of traversed search paths in all circumstances.
+In a general situation, the validity of the traversed path can be
+ascertained by releasing the latch on the parent page only after
+a latch on a child page has been acquired.
+Latch-coupling is deadlock-free if the latches are acquired in a
+predefined order, such as first top-down, then left-to-right.
+However, in the case of the TMVBT index the fact that
+inactive data always remains in place
+(\invref{inv:tmvbt-static-inactive-entries}), together with our assumption
+that a read-only transaction only reads inactive data
+(\invref{inv:tmvbt-read-only-inactive}), implies that the \action{query} and
+\action{range-query} actions of read-only transactions do not need to perform
+latch-coupling, and a parent page may be unlatched during tree traversal
+before acquiring a latch on the child page.
+
+Accordingly, an action \action{query}$(k)$ in a read-only transaction
+that is reading the version~\snapver{T} can be implemented as follows.
+First, the root page for version~\snapver{T} is located from \rootstar\ and
+read-latched.
+Then the TMVBT is traversed using read latches without latch-coupling until
+the leaf page~$p$ is found that covers key~$k$ and version~\snapver{T}; that
+is, $k \in \kr{p}$ and $\snapver{T} \in \vr{p}$. 
+At each index page~$p'$ on the traversed path, the next page on the
+path is the child page~$p''$ of $p'$ with $k \in \kr{p''}$ and $\snapver{T} \in
+\vr{p''}$. 
+Once the identifier of the child page~$p''$ has been determined, the read latch
+on the parent page~$p'$ is released and the child page~$p''$ is read-latched.
+When the correct leaf page~$p$ has been found, the proper entry $(k, [v_1,v_2),
+w)$ with $v_1 \leq \snapver{T} < v_2$ is located, and page~$p$ is unlatched.
+
+An action \action{range-query}$([k_1,k_2))$ is implemented similarly,
+except that for each index page~$p'$ in the search path we need to
+traverse all subtrees rooted at each child page~$p''$ such that
+$[k_1,k_2) \cap \kr{p''} \neq \emptymark$ and $\snapver{T} \in \vr{p''}$.
+If there are more than one such child page~$p''$, then the page identifiers
+of all but the first child page are pushed into a stack, and the traversal
+proceeds to the subtree rooted at the first child.
+When a subtree has been searched, a page identifier (if any) is popped from
+the stack, the corresponding page is read-latched, and the search is
+continued at the subtree rooted at that page.
+Because the inactive entries and pages are static
+(\invref{inv:tmvbt-static-inactive-entries}), the pages do not need to be
+latched while the page identifiers are queued in the stack.
+Latching is used only to prevent inconsistent reads if the updating
+transaction needs to modify a page at the same time the read-only transaction
+is reading it.
+
+The following theorem follows directly from the definitions of the query
+actions of the read-only transactions and from the fact that only one
+updating transaction can be active at a time:
+
+\thmskip
+\begin{theorem}
+\label{theorem:tmvbt:serializable} 
+The TMVBT algorithms produce a
+snapshot-isolated schedule~\cite{berenson:1995:sql-critique} for the
+transactions.
+\end{theorem}
+\begin{proof}
+Firstly, because there can only be a single active updating transaction that
+operates on the TMVBT at a time, the updating transactions are processed in a
+fully serialized manner, thus fulfilling the requirements for
+snapshot-isolated transactions. 
+Secondly, read-only transaction only read committed data that is never deleted,
+so they also form snapshot-isolated schedules.
+\end{proof}
+\thmskip
+
+An updating transaction begins with the \action{begin-update} action and ends
+with the \action{commit-update} action, as described in
+\secref{sec:tmvbt:multi-action-tx}, unless the transaction is aborted and
+rolled back.
+% The action takes a commit-duration write lock on~\actver, increments
+% it, and assigns it to the transaction as described in
+% \secref{sec:tmvbt:multi-action-tx}.
+% A transaction~$T$ executing this action writes a redo-undo log record
+% \lrb{T}, \logact{begin}, $v$, \lre{\actver}, where $v$ is the previous value
+% of the active version variable, and \actver\ is the incremented value.
+% The \action{commit-update} action, in addition to taking the lock and updating
+% the commit version variable~\comver, as explained in
+% \secref{sec:tmvbt:multi-action-tx}, writes a redo-only log record
+% \lrb{T}, \logact{commit}, \lre{\comver}.
+% Finally, this action forces the database log to disk.
+The \action{query} and \action{range-query} actions are the same as for
+read-only transactions, except that they now target the version~\actver, and
+the actions may read active entries and pages.
+As with read-only transactions, these actions in an updating transaction do
+not write log records, because they do not create changes to the database
+that would have to be redone or undone during restart recovery.
+
+For efficiency, we assume that the TMVBT index records the page identifier of
+the root page of version~\actver\ separately so that the queries in updating
+transactions do not need to use the \rootstar\ structure to find it.
+Similarly, because read-only transactions reading the most recent committed
+version always target the version~\comver, the page identifier of the root
+page of that version is also maintained separately.
+
+\thmskip
+\begin{theorem}
+\label{thm:tmvbt-query-cost}
+When the root of the search tree of version~$v$ is known, the cost of a
+single-key query action in the TMVBT targeting version~$v$ is
+\OhT{\log_\capacity \entries{v}} pages, and the cost of the key-range query
+action for version~$v$ is \OhT{\log_\capacity \entries{v} + r/\capacity}
+pages of the TMVBT structure, where $\entries{v}$ denotes the number of data
+items that are alive at version~$v$, $r$ is the number of entries returned by
+the range query and \capacity\ is the page capacity.
+\end{theorem} 
+\begin{proof}
+Assuming that \invref{inv:tmvbt-live-count} holds, each page of the TMVBT
+that is part of the search tree~$S_v$ has at least \minlive\ entries that are
+alive at version~$v$. 
+The proof is therefore the same as the proof of \thmref{thm:mvbt-cost}.
+We will show later on in
+Lemmas~\ref{lemma:kill-page-split-counts},
+\ref{lemma:split-page-split-counts}, and~\ref{lemma:merge-page-split-counts} 
+that all the SMOs maintain \invref{inv:tmvbt-live-count}, thereby confirming
+this result. 
+\end{proof}
+\thmskip
+
+We assume that all TMVBT page traversals maintain a \emph{saved
+path}\phantomsection\label{def:saved-path}~\cite{lomet:1992:conc-rec,lomet:1997:concurrency};
+that is, an array \emph{path} local to the server process or thread in
+question and indexed by the height of pages.
+An entry \emph{path}$[i]$ holds the page identifier, key range, life span,
+and Page-LSN of the page that was located at level~$i$ when traversing the
+root-to-leaf path.
+The saved-path concept can be used to accelerate the user actions by starting
+the traversal at the lowest-level page in the saved path that, according to
+the saved information, covers the queried search space.
+This page is known to be the correct page to start the tree
+traversal, because 
+(1)~for read-only transactions, the inactive data is never moved away
+from the pages; and 
+(2)~for updating transactions, there can be no other updating
+transaction that would invalidate the data in the saved path of the
+current updating transaction.
+This holds regardless of whether a concurrent purging process is allowed,
+because the purging process only deletes pages that are part of
+historical versions that are no longer queried.
+
+% Write and delete action general idea
+For the \action{write}$(k,w)$ and \action{delete}$(k)$ actions of the
+updating transaction, the TMVBT is traversed using read latches without
+latch-coupling as for the \action{query}$(k)$ action of the updating
+transaction, except that the target leaf page~$p$ is write-latched.
+% As in \action{query}$(k)$ and \action{range-query}$([k_1, k_2))$, no
+% latch-coupling is needed.
+If the target leaf page~$p$ can accommodate the update, then the update is
+applied on page~$p$ directly; otherwise a structure-modification operation
+is performed before the action can proceed.
+After the update has been applied, a redo-undo log record for the action
+is generated, its LSN is stamped in the Page-LSN field of~$p$, and the
+write latch on~$p$ is released.
+
+% Write action specifics
+In the \action{write}$(k,w)$ action, if the index contains a live entry
+of the form $(k,[v,\infty),w')$, then that entry is logically deleted by
+either replacing it with a new entry $(k,[v,\actver),w')$, if $v \neq
+\actver$; or by physically removing the old entry, if $v = \actver$.
+After the existing entry has been deleted, a new entry
+$(k,[\actver,\infty),w)$ is inserted into the page~$p$. 
+The page~$p$ can accommodate this update action, if the operations explained
+above can be carried out without the page overflowing.
+The redo-undo log entry written for this action contains the version and data
+of the replaced entry, in addition to the version and data of the inserted
+entry.
+The log entry written by an updating transaction~$T$ is thus
+\lrb{T}, \logact{write}, $p$, $k$, \actver, $w$, $v$, $w'$, \lre{n}, where
+$n$ is the log sequence number of the previous not-yet-undone action
+of~$T$, and $v$ and $w'$ are null if the index contained no live entry with
+the key~$k$.
+ 
+% Delete action specifics
+In the case of the \action{delete}$(k)$ action, page~$p$ can
+accommodate the update if replacing the entry $(k,[v,\infty),w)$ by
+$(k,[v,\actver),w)$ (in the case $v \neq \actver$), or physically removing
+the entry $(k,[\actver,\infty),w)$ (otherwise) does not decrease the number
+of live entries in the page below the required minimum number of live entries,
+$\minlive$.
+% The redo-undo log record written for this action contains the version and
+% data of the deleted entry.
+An updating transaction~$T$ writes a redo-undo log record
+\lrb{T}, \logact{delete}, $p$, $k$, \actver, $v$, $w$, \lre{n} for this
+action.
+
+When the target leaf page~$p$ cannot accommodate the update,
+structure modifications are needed. 
+These operations are explained in \secref{sec:tmvbt:smo}. 
+For writes, the operation \alg{split-page} is called before
+the write action can proceed. 
+For deletes, the page~$p$ needs to be consolidated by the operation
+\alg{merge-page} before the entry can be deleted from the page.
+When the structure-modification operations are initiated, the page~$p$,
+recorded on the saved path, is left write-latched. 
+After the operations, the saved path contains the correct write-latched leaf
+page~$p'$ whose key range covers the key~$k$. 
+As with the earlier situation, the update is now performed on page~$p'$, a
+redo-undo log record is generated, the LSN is stamped on~$p'$ and page~$p'$
+is unlatched.
+
+As will be explained in the next section, the structure modifications
+(page splits or merges) are applied in a top-down, level-by-level
+manner, logging the structure modification done at each level using
+a single redo-only log record.
+Each of these structure modifications involves a maximum of five pages
+at two adjacent levels.
+The sequence of structure modifications results in a target leaf page that
+can accommodate the \action{insert} or \action{delete} action in question.
+
+An undo action, \action{undo-write}$(r)$ or \action{undo-delete}$(r)$,
+is performed as a physical undo if possible and as a logical undo
+otherwise~\cite{mohan:1992:aries}.
+For a physical undo, the page mentioned in the log record~$r$ is
+write-latched and the Page-LSN field is examined.
+If the Page-LSN field still contains the LSN of~$r$, or if
+the page contents show that the page is the correct target for the
+undo action and the page can accommodate the undo action, then the undo
+action is performed on the page, a redo-only log record is generated, its
+LSN is stamped in the Page-LSN field of the page, and the page is
+unlatched.
+If the page mentioned in the log record~$r$ cannot be seen
+to be the correct target for the undo action or if the page cannot
+accommodate the undo action, a \emph{logical undo}
+is performed, starting with a search for the key mentioned in~$r$
+and performing any structure modifications that may be necessary to
+make the target page accommodate the undo action.
+The undo actions write redo-only compensation log records, as dictated
+by the ARIES algorithm.
+If the page cannot accommodate the undo action, the page is first split
+or merged after write-latching it, as with the forward-rolling write
+and delete actions.
+
+The \action{undo-write} action reads the log record
+\lrb{T}, \logact{write}, $p$, $k$, \actver, $w$,
+$v$, $w'$, \lre{n} created by the \action{write} action that is to be undone. 
+Let page~$p'$ be the current correct leaf page that covers key~$k$ at
+version~\actver.
+As discussed above, $p'$~is either~$p$ or it has been located with a
+root-to-leaf traversal of the TMVBT index structure.
+This action locates the active entry $(k,[\actver,\infty),w)$ from page~$p'$
+and physically removes it.
+If $v$ and $w'$ are not null, then this action furthermore restores the
+previous entry.
+If $v < \actver$, the currently dead inactive entry $(k,[v,\actver),w')$ is
+located (if it is still present on~$p$) and restored to life by replacing it
+with $(k,[v,\infty),w')$. 
+If $v = \actver$, or if $p'$ has been version-split so that the historical
+entry $(k,[v,\actver),w')$ is not present on~$p'$, then the active entry
+$(k,[\actver,\infty),w')$ is inserted to page~$p'$ to undo the write
+action.
+The leaf page~$p'$ can accommodate the undo action if the operations
+described can be carried out without the page overflowing, and without the
+number of live entries on the page decreasing below \minlive.
+The action finishes by writing a redo-only compensation log record
+\lrb{T}, \logact{undo-write}, $p'$, $k$, \actver, $v$, $w'$, \lre{n}.
+
+The \action{undo-delete} action examines the log record \lrb{T},
+\logact{delete}, $p$, $k$, \actver, $v$, $w$, \lre{n} created by the delete
+action, and locates the correct leaf page~$p'$.
+If $v < \actver$, then this action locates the logically deleted entry 
+$(k,[v,\actver),w)$, and replaces it with $(k,[v,\infty),w)$.
+If $v = \actver$, or if the logically deleted entry $(k,[v,\actver),w)$ is no
+longer present on $p'$, then this action inserts a new active entry
+$(k,[\actver,\infty),w)$ into page~$p'$. 
+The leaf page~$p'$ can accommodate the undo action if the operation
+described above can be performed on $p'$ without it overflowing. 
+The action finishes by writing a redo-only compensation log
+record \lrb{T}, \logact{undo-delete}, $p'$, $k$, \actver, $v$, $w$, \lre{n}.
+
+
+%% Structure-Modification Operations
+%%---------------------------------------------------------------------
+\section{Structure-Modification Operations}
+\label{sec:tmvbt:smo}
+
+In this section, we will describe the structure-modification operations
+(SMOs) used with the TMVBT index. 
+The two main operations described here, \alg{split-page} and
+\alg{merge-page}, are triggered by the user actions described in the previous
+section. 
+For convenience, we will use the same notation for entries in both index
+and leaf pages.
+The format of an index-page entry is $(\kr{p}, \vr{p}, p)$; that is
+$([k_1, k_2), [v_1, v_2), p)$, where $\kr{p} = [k_1, k_2)$ is the key range
+and $\vr{p} = [v_1, v_2)$ is the life span of the page~$p$. 
+A leaf-page entry $(k,\vrmark{v},w)$, for key~$k$ and data-item
+value~$w$, that is alive at versions in the range $\vrmark{v} = [v_1,
+v_2)$, is represented by the tuple $([k, k^{+}), [v_1, v_2), w)$,
+where $k^{+}$ is the key immediately following key~$k$ in the key space (for
+databases that store integer keys, $k^{+} = k + 1$).
+In this way we can use the same algorithms for manipulating both the leaf
+pages and the index pages.
+
+The convention in the TMVBT structure-modification operations is
+that each SMO transforms a balanced (\defref{def:consistent-balanced}) TMVBT
+index into another balanced TMVBT\@.
+Each operation is logged with a single redo-only log record, so that
+structure modifications are never undone when a transaction aborts or
+system fails~\cite{jaluta:2005:blink,jaluta:2006:page-server}. 
+The structure-modification operations are performed top-down,
+starting from the highest page on the search path that requires
+splitting or merging.
+
+The actual implementation of the operations traverses the search path
+bottom-up in order to determine which kind of a structure modification
+is needed at each level, yet without performing any modification. 
+When a parent page which does not need any modification is encountered, the
+search path is traversed top-down, and the structure modifications are
+performed level-by-level, logging each operation with a single redo-only log
+record.
+The search path state is guaranteed to remain valid throughout the
+operations because only one updating transaction can be active at a
+time.
+The information about the traversed search path stored in the
+saved path can thus be trusted.
+For clarity, the algorithms presented in this section only describe
+the structure-modification operations applied at a single level.
+
+% Operation: Page killing
+Both of the SMOs \alg{split-page} and \alg{merge-page} are based on the
+page-killing operation \alg{kill-page}.
+Page killing is not a separate SMO, but it is used in both of the actual
+SMOs.
+This operation creates a live copy of a page~$p$, and marks the original
+page~$p$ as killed.
+%This operation assumes a write-latched inactive live
+%page~$p$ and its write-latched parent page~$q$, marks $p$ as killed by
+%replacing its life span $[v, \infty)$ with $[v, \actver)$, and creates a
+%new active live page~$p'$ that holds the live contents of~$p$. 
+%As per \invref{inv:tmvbt-live-entry-copy}, the active entries of~$p$ are
+%physically moved to page~$p'$, and new active copies of the inactive live
+%entries of page~$p$ are created into page~$p'$.
+The operation is described in \algref{alg:killpage}.
+The page~$p$ and its parent~$q$ (located from the saved path) are both
+write-latched before the operation is performed.
+As discussed above, we assume that all required \abbr{SMOs} have been
+applied to the parent page~$q$, so that $q$ can accommodate the entry
+inserted by the algorithm.
+
+\begin{algorithm}
+$\proc{kill-page}(p, q)$:
+
+\begin{algorithmic}[1]
+\STATE $p' \leftarrow$ allocate, write-latch, and format a new page
+% format $p'$ as a TMVBT page, and set the height of $p'$ to be the height
+% of $p$
+\STATE move all active live entries of $p$ to $p'$
+\STATE create active copies of all inactive live entries of $p$ to $p'$
+\STATE kill all live entries of $p$ 
+% by setting the end point of their life span to \actver
+\STATE $r \leftarrow$ find the router $([k_1, k_2), [v,\infty), p)$ to $p$
+from $q$ 
+\STATE replace the retrieved router $r$ in $q$ with $([k_1,k_2),
+[v,\actver), p)$
+\STATE insert a new router $([k_1, k_2), [\actver,\infty), p')$ to
+$q$
+\RETURN $p'$
+\end{algorithmic}
+\figcaption{Page-killing algorithm}%
+{The algorithm assumes an inactive page~$p$ and its parent page~$q$, kills
+the page~$p$, creates an active live copy~$p'$ of~$p$ and updates the
+routers in the parent page~$q$.}
+\label{alg:killpage}
+\end{algorithm}
+
+The page-killing operation begins by allocating a new page~$p'$,
+write-latching it and formatting it as a TMVBT page. 
+All the live entries of page~$p$ are now either copied or moved to page~$p'$
+in such a way that all active entries are physically moved to $p'$, and 
+all inactive live entries are copied to~$p'$. 
+The life spans of the copied entries are split at version
+\actver, so that a life span $[v, \infty)$ is changed to $[v,
+\actver)$ in the entry that remains in page~$p$ and to $[\actver, \infty)$
+in the new entry created to page~$p'$. 
+The logical state of the database at all versions prior to \actver\ is thus
+maintained in page~$p$, but the page~$p$ is no longer part of the
+search trees of versions $v \geq \actver$. 
+The router to page~$p$ in the parent page~$q$ must be updated by setting its
+end version to \actver, and the router to the new page must also be inserted
+into the parent. 
+After this, the old page~$p$ is replaced with the active page~$p'$ in
+the saved path. 
+All pages modified by this operation are kept write-latched, because the
+acquired page latches can be released only after the associated log record
+has been written. 
+
+\thmskip
+\begin{lemma}
+\label{lemma:kill-page-split-counts}
+The \alg{kill-page} operation maintains \invref{inv:tmvbt-live-count}.
+\end{lemma}
+\begin{proof}
+Because the TMVBT index is balanced at the point when the SMO that uses the
+page-killing operation is triggered, page~$p$ must contain at least \minlive\
+entries that are alive at version~$v'$, for each version $v' \in [v,
+\actver]$, where $v$ is the starting point of the life span of $p$. 
+There are thus at least \minlive\ entries in page~$p$ that are alive at
+version \actver. 
+These entries are either copied or moved to the new page~$p'$, which thus has
+at least \minlive\ live entries after the page-killing operation.
+Because the life spans of the copied entries were cropped to start from
+version \actver, page~$p'$ contains no entries that are alive at any
+earlier version $v' < \actver$.
+All of the entries that are alive at version~\actver\ in page~$p$ are 
+deleted from~$p$---either physically, if they were active entries; or
+logically, if they were inactive entries.
+After the page-killing operation, page~$p$ thus does not have any entries that
+are alive at version~\actver.
+The number of entries in page~$p$ that were alive at an earlier version $v' <
+\actver$ remains unchanged. 
+Clearly, the invariant holds for pages~$p$ and~$p'$.
+Furthermore, a single router that is alive at version \actver\ is logically
+deleted from the parent page~$q$, and a new active router is inserted to the
+parent to replace it. 
+The number of live entries in the parent page is therefore not affected for
+any version.
+Because all the pages retain a valid number of live entries for all
+versions, we conclude that the page-killing operation maintains
+\invref{inv:tmvbt-live-count}.
+It is clear that \invref{inv:tmvbt-static-inactive-entries} is also
+maintained.
+\end{proof}
+\thmskip
+
+\begin{algorithm}[htb]
+$\proc{split-page}(p, q)$:
+
+\begin{algorithmic}[1]
+\IF[\figref{fig:split-active}, key split]{$p$ is active}
+  \STATE $p' \gets$ allocate, write-latch, and format a new
+  page 
+  \STATE distribute entries of $p$ between $p$ and $p'$
+%  \STATE insert router to $p'$ in $q$
+%  \STATE adjust router to $p$ in $q$
+\ELSE[Figures~\ref{fig:split:is1}--\ref{fig:split:ima2}, version
+split] 
+  \STATE $\liveentries{p} \gets$ count the number of live entries in $p$
+  \STATE $p' \gets$ \proc{kill-page}($p$)
+  %\STATE insert router to $p'$ in $q$
+  \IF[\figref{fig:split:is2}]{$\liveentries{p} >
+  \maxsplit$} 
+    \STATE $p'' \gets$ allocate, write-latch, and format a new page 
+    \STATE distribute entries of $p'$ between $p'$ and $p''$
+%    \STATE insert router to $p''$ in $q$
+%    \STATE adjust router to $p'$ in $q$
+  \ELSIF[Figures~\ref{fig:split:imi1}--\ref{fig:split:ima2}]{$\liveentries{p} <
+  \minsplit$} 
+    \STATE $s \gets$ find a live sibling page of $p'$ from $q$ and
+    write-latch it
+    \STATE $\liveentries{s} \gets$ count the number of live entries in $s$
+    \STATE $p'' \gets s$ if $s$ is active, \proc{kill-page}($s$)
+    otherwise
+    %\IF[Figures~\ref{fig:split:ima1},\ref{fig:split:ima2}]{$s$ is active} 
+    %  \STATE $p'' \leftarrow s$
+    %\ELSE[Figures~\ref{fig:split:imi1},\ref{fig:split:imi2}]
+    %  \STATE $p'' \leftarrow$ \proc{kill-page}($s$)
+    %\ENDIF
+    \IF[Figures~\ref{fig:split:imi2},\ref{fig:split:ima2}]{$\liveentries{p} + \liveentries{s} > \maxsplit$}
+      \STATE redistribute entries of $p'$ and $p''$ 
+%      \STATE adjust router to $p'$ in $q$ 
+%      \STATE adjust router to $p''$ in $q$
+    \ELSE[Figures~\ref{fig:split:imi1},\ref{fig:split:ima1}]
+      \STATE move all entries of $p''$ to $p'$
+%      \STATE adjust router to $p'$ in $q$
+%      \STATE remove router to $p''$ from $q$
+      \STATE deallocate $p''$
+    \ENDIF
+  \ELSE[\figref{fig:split:is1}]
+    \STATE \COMMENT{No further action required}
+  \ENDIF
+\ENDIF
+%\STATE log the operation using a redo-only log record
+%\STATE release page latches
+\end{algorithmic}
+\figcaption{The page-splitting algorithm}%
+{Splits a page~$p$, possibly redistributing the live entries with a sibling
+page~$s$. 
+Updates the routers in the parent page~$q$.}
+\label{alg:split}
+\end{algorithm}
+
+% SMO: Split
+The \alg{split-page} operation is a structure-modification operation
+that splits a page that has become full. 
+The operation is similar to the MVBT version-split operation, with the
+exception that active pages are directly key-split without first killing the
+page. 
+This operation is triggered by a \action{write} action when a data
+page has become full, by both \action{undo-write} and \action{undo-delete}
+actions if the leaf page cannot accommodate the undo action, and the
+operation is also used to split index pages along the search path. 
+At the beginning, the page~$p$ to be split is retrieved from the
+saved path along with its parent page~$q$, and both pages are
+write-latched for modification; unless the operation was triggered by a user
+action, in which case page~$p$ is already write-latched.
+As explained in the beginning of this section, we expect that parent
+pages in the saved path have already been split so that the parent
+page~$q$ can accommodate the routers to the new pages created by
+the split operation. 
+
+An overview of the actual \alg{split-page} operation is simple: if page~$p$
+is active, it will be key-split, and if it is inactive, it will be
+version-split. 
+Key-splitting and version-splitting will be defined in more detail below. 
+An overview of the page-split operation is shown in \algref{alg:split}. 
+In the algorithms presented in this section, we denote by \liveentries{p} the
+number of live entries in page~$p$. 
+Note that the bottom-up checking phase needs to do the same checks
+that are described in \algref{alg:split} to determine which
+kind of a split needs to be done. 
+When performing the actual structure modification, the same checks
+must be performed again (as described here), or results saved
+during the checking phase can be used.
+
+% Split-page: key-split
+The first part of the split algorithm, the \alg{key-split} operation, is
+similar to the page-split operation in a standard \Btree. 
+This operation begins by allocating, write-latching, and formatting a new
+page~$p'$.
+After that, the entries of the old page~$p$ are distributed between~$p$
+and~$p'$ by moving half of the entries from~$p$ to~$p'$.
+Note that all the entries of page~$p$ are alive and active at the
+beginning of the operation because~$p$ is active, and thus the entries
+may be physically distributed between the pages.
+The operation finishes by adjusting the the router to page~$p$ in the parent
+page~$q$, and by inserting a router to the new page~$p'$ into~$q$. 
+The key-split operation is illustrated in
+\figref{fig:split-active}.
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-split-a.tex}
+  \figcaption{Key-splitting an active page~$p$}%
+  {The horizontal axis represents life spans, and the vertical axis key
+  ranges.}
+ % [$p$ active, $\liveentries{p} = \capacity$]
+  \label{fig:split-active} 
+\end{center}
+\end{figure}
+
+% Create new root
+An exception to the key-split algorithm is the situation when page~$p$
+has no parent page, and the saved path only contains the page~$p$. 
+This happens when page~$p$ is a root page.
+In this situation a new parent page~$r$ is allocated, write-latched and
+formatted; and routers to pages~$p$ and~$p'$ are inserted to it. 
+The new root is attached to the TMVBT by inserting the tuple $(\actver, r)$
+into \rootstar, and by updating the cached root page identifier for
+version~\actver.
+This will replace the existing tuple $(\actver, p)$ in the \rootstar,
+which pointed to the previous root page~$p$.
+The rest of the key-split operation is otherwise similar to the normal
+situation.
+Note that this operation increases the height of the search tree
+$S_{\actver}$ by one.
+
+% Split-page: version-split
+The \alg{version-split} operation begins by killing the inactive page~$p$
+with the page-killing operation defined earlier. 
+The new active copy of page~$p$ is denoted by~$p'$.
+At this point, page~$p'$ may contain too few or too many entries to satisfy
+\invref{inv:tmvbt-minsplit-maxsplit}.
+%the strong version condition (see p.~\pageref{def:strong-version}).
+If the number of entries in~$p'$ (i.e., \liveentries{p}, the number of live
+entries in~$p$ before the page-killing operation) is less than $\minsplit$,
+the page will be merged with a sibling page by consolidating it in the same
+way as pages are merged in the \alg{merge-page} operation that will be
+shortly described. 
+If the number of entries in~$p'$ is more than $\maxsplit$, page~$p'$ will
+be key-split in the same way as active pages are split. 
+
+% Update root pointer for version-split
+As with the key-split algorithm, it is possible that the inactive page~$p$
+has no parent, if it is the root page of the current-version search tree.
+In this case, the page-killing operation cannot update the parent page, but
+instead a new tuple $(\actver, p')$ is inserted to \rootstar\ to indicate
+that the new active page~$p'$ is the current root page.
+If page $p'$ contains more than \maxsplit\ entries after the page-killing
+operation, it is further key-split, a new parent page~$r$ is created, 
+and the tuple $(\actver, p')$ in \rootstar\ is replaced by $(\actver, r)$.
+The cached root page identifier must also be updated.
+
+% Log record
+The entire split operation, consisting of either a key split or a version
+split (possibly followed by a key split or consolidation), and including the
+possible tree-height increase or root-page update, is logged with a single
+redo-only log record containing the page identifiers of all the pages
+involved in the SMO; that is, a subset of the pages $p$, $p'$, $p''$, $s$,
+$q$, and $r$.
+The redo-only log record must also contain information of all the
+entries moved or copied between pages, as explained in
+\secref{sec:mv-data:smo}. 
+For example, the log record of a version split followed by a key split (shown
+in \figref{fig:split:is2}) is
+\lrb{T}, \logact{version-split-key-split}, $p$, $p'$, $p''$, $q$,
+$E_{p'}$, \lre{E_{p''}}, where $E_x$ denotes the set of entries that were
+written on page~$x$. 
+This operation can be redone on $p$ by deleting all the live
+entries from $p$; and on pages $p'$ and $p''$ by clearing the page and
+inserting the entries from the corresponding set $E_{p'}$ and $E_{p''}$. 
+As usual, all the pages are kept latched until the log record has been
+generated and its LSN stamped in the Page-LSN fields of the
+pages. 
+The split operation finishes by replacing $p$ in the saved
+path with the active page whose key range covers~$k$ (either~$p'$ or~$p''$),
+and by unlatching all the other pages involved in the operation.
+
+\begin{figure}[!htb]
+\begin{center}
+  \subfigure[$\minsplit \leq \liveentries{p} \leq
+  \maxsplit$]{\label{fig:split:is1}
+    \input{images/tmvbt-split-is1.tex}}
+  \subfigure[$\liveentries{p} > \maxsplit$]{\label{fig:split:is2} 
+    \input{images/tmvbt-split-is2.tex}}
+  \\
+  \subfigure[$s$ inactive, $\liveentries{p} < \minsplit$ and 
+    $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:split:imi1}
+    \input{images/tmvbt-split-imi1.tex}}
+  \subfigure[$s$ inactive, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:split:imi2}
+    \input{images/tmvbt-split-imi2.tex}}
+  \\
+  \subfigure[$s$ active, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:split:ima1}
+    \input{images/tmvbt-split-ima1.tex}}
+  \subfigure[$s$ active, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:split:ima2}
+    \input{images/tmvbt-split-ima2.tex}}
+  \figcaption{Version-splitting an inactive page~$p$}
+  {The horizontal axis represents life spans, and the vertical
+  axis key ranges. 
+  Case 
+  (a)~represents a version split, 
+  (b)~a version split followed by a key split,
+  (c)~a version split followed by a merge with an inactive sibling, 
+  (d)~a version split followed by a redistribution of live entries
+  with an inactive sibling, 
+  (e)~a version split followed by a merge with an active
+  sibling, and 
+  (f)~a version split followed by a redistribution of live entries
+  with an active sibling.}
+  \label{fig:split}
+\end{center}
+\end{figure}
+
+All the possible different page-split scenarios for inactive pages are shown
+in \figref{fig:split}. 
+In the figure, the horizontal axis represents life spans, and the
+vertical axis represents key ranges. 
+In the presented scenarios, page~$p$ is split. 
+Page~$s$ is the sibling page that is located from the parent of~$p$
+found in the saved path.
+Pages~$p'$ and~$p''$ are new pages allocated by the operation. 
+As can be seen from the figures, all the scenarios preserve the
+initial key-version extents of~$p$ and~$s$.
+That is, the new pages cover exactly the same region in key-version
+space as the old pages did. 
+The version-split operation therefore preserves the combined spatial extents
+of the pages that are involved in the split operation, and thus can neither
+cause pages to overlap nor create gaps in the key-version space. 
+
+A more detailed example of a version split followed by a merge with an inactive
+sibling (as depicted in \figref{fig:split:imi1}) is shown in
+\figref{fig:split-imi1-example}.
+This example shows how the live entries of a leaf page~$p$ are merged with the
+live entries of a sibling page~$s$ into a newly allocated page~$p'$.
+As seen from the figure, the entries labeled~\num{1} and~\num{2} are killed,
+and active copies of them are created into the new page~$p'$.
+The third entry, entry~\num{3}, is already active, and it is therefore
+physically moved from page~$s$ into the new page~$p'$, thus reducing the number
+of entries stored in~$s$ by one.
+After the split operation, pages~$p$ and~$s$ are dead and only contain dead
+entries.
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-split-imi1-example.tex}
+  \figcaption{Example of a page split}
+  {This figure shows a version split followed by a merge with an inactive
+  sibling. 
+  Entries labeled~{1} and~{2} are killed and new copies of them are
+  created in page~$p'$, while the entry~\num{3} is physically moved
+  from page~$s$ into page~$p'$.}
+  \label{fig:split-imi1-example}
+\end{center}
+\end{figure}
+
+\thmskip
+\begin{lemma}
+\label{lemma:split-page-split-counts}
+The \alg{split-page} operation maintains
+\invref{inv:tmvbt-live-count}.
+\end{lemma}
+\begin{proof}
+First of all, if the page~$p$ that is to be split is an active page, then 
+the split operation is triggered because the page became full and thus
+contains $\liveentries{p} = \capacity$ live entries.
+In this case, the entries will be split between the page~$p$ and a newly
+allocated page~$p'$, resulting in $\nicefrac{\capacity}{2}$ entries in each
+page, satisfying $\minsplit \leq \nicefrac{\capacity}{2} \leq \maxsplit$. 
+Secondly, if the page~$p$ is inactive, it is first killed, and the resulting
+page~$p'$ contains $\liveentries{p}$ entries, where $\minlive \leq
+\liveentries{p} \leq \capacity$. 
+This is because the \alg{split-page} operation is only invoked when the
+page~$p$ has become full, and by \invref{inv:tmvbt-live-count} it must
+contain at least $\minlive$ live entries.
+If $\liveentries{p} < \minsplit$, the page will be merged with another page
+to avoid thrashing. 
+Merging pages maintains the invariant, which is proven in the proof of
+\lemmaref{lemma:merge-page-split-counts} for the \alg{merge-page} operation.
+If $\liveentries{p} > \maxsplit$, the page will be key-split into two pages,
+both of which will contain more than \minsplit\ entries. 
+\end{proof}
+\thmskip
+
+
+\begin{algorithm}[htb]
+$\proc{merge-page}(p, q)$:
+
+\begin{algorithmic}[1]
+\STATE $\liveentries{p} \gets$ count the number of live entries in $p$
+\STATE $p' \leftarrow p$ if $p$ is active, \proc{kill-page}($p$) otherwise
+%\IF[Figures~\ref{fig:merge:ama1}--\ref{fig:merge:ami2}]{$p$ is active}
+%  \STATE $p' \leftarrow p$
+%\ELSE[Figures~\ref{fig:merge:ima1}--\ref{fig:merge:imi2}]
+%  \STATE $p' \leftarrow$ \proc{kill-page}($p$)
+%\ENDIF
+\STATE $s \leftarrow$ find a live sibling page of $p$ from $q$ and
+write-latch it
+\STATE $\liveentries{s} \gets$ count the number of live entries in $s$
+\STATE $p'' \leftarrow s$ if $s$ is active, \proc{kill-page}($s$) otherwise 
+%\IF[Figures~\ref{fig:merge:ama1},\ref{fig:merge:ama2},\ref{fig:merge:ima1},\ref{fig:merge:ima2}]{$s$
+%is active} 
+%  \STATE $p'' \leftarrow s$
+%\ELSE[Figures~\ref{fig:merge:ami1},\ref{fig:merge:ami2},\ref{fig:merge:imi1},\ref{fig:merge:imi2}]
+%  \STATE $p'' \leftarrow$ 
+%\ENDIF
+\IF[Figures~\ref{fig:merge:ama1},\ref{fig:merge:ami1},\ref{fig:merge:ima1},\ref{fig:merge:imi1}]{$\liveentries{p}
++ \liveentries{s} \leq \maxsplit$} 
+  \STATE move all entries of $p''$ to $p'$ 
+  %\STATE remove router to $p''$ from $q$ 
+  %\STATE adjust router to $p'$ in $q$ 
+  \STATE deallocate $p''$
+\ELSE[Figures~\ref{fig:merge:ama2},\ref{fig:merge:ami2},\ref{fig:merge:ima2},\ref{fig:merge:imi2}]
+  \STATE redistribute entries between $p'$ and $p''$
+  %\STATE adjust router to $p'$ in $q$
+  %\STATE adjust router to $p''$ in $q$
+\ENDIF
+%\STATE log the operation using a redo-only log record
+%\STATE release page latches
+\end{algorithmic}
+\figcaption{The page-merging algorithm}%
+{Merges a page~$p$ with a sibling page~$s$ located from the parent page~$q$,
+killing the pages if they are inactive. 
+Updates the routers in the parent page~$q$ accordingly.}
+\label{alg:merge}
+\end{algorithm}
+
+% SMO: merge
+The \alg{merge-page} operation is a structure-modification operation that
+merges a page with a sibling page when the number of live entries in the
+page is about to decrease below \minlive. 
+This operation is triggered by the \action{delete} or \action{undo-write}
+action, if an entry deletion is about to decrease the number of live entries
+below \minlive; and by SMOs at a lower level.
+% This operation is also used to merge index pages in the search path. 
+An overview of the operation is shown in \algref{alg:merge}.
+The operation begins by retrieving the page~$p$ to be merged from the saved
+path. 
+The page~$p$ is assumed to be write-latched at this point.
+The parent page~$q$ also needs to be modified, so it is retrieved from
+the path, and write-latched for modification. 
+As with the \alg{split-page} operation, it is assumed that the parent
+page~$q$ can accommodate the insertions or deletions possibly triggered by
+this operation (insertion of up to two new routers; or deletion of a
+single router).
+%Again, the bottom-up checking phase needs to do the same checks that
+%are shown in \algref{alg:merge}, and these results can be saved.
+
+The merge operation continues by finding a live adjacent sibling page~$s$
+from the parent page~$q$, and by write-latching it. 
+Such a page is guaranteed to be found, because by
+\invref{inv:tmvbt-live-count}, the parent page must contain at least two live
+entries, and live entries are adjacent to each other.
+If either page~$p$ or the sibling page~$s$ is inactive, it
+is killed with the page-killing operation defined earlier; otherwise the
+merge operation will be performed on it directly. 
+We denote the active pages by~$p'$ (from page~$p$) and~$p''$ (from
+page~$s$).
+The operation now merges the active pages~$p'$ and~$p''$.
+
+The merging is similar to the standard \Btree\ merge operation. 
+If the number of combined entries of pages~$p'$ and~$p''$ (equivalently,
+number of live entries in pages~$p$ and~$s$ before the page-killing
+operations) is larger than \maxsplit, the entries will be redistributed
+between the two pages. 
+If the number of entries is less than or equal to \maxsplit, the entries
+will be moved to page~$p'$, and page~$p''$ will be deallocated by
+removing the router to it from the parent and by deallocating the page
+from the corresponding space-map page.
+The router to page~$p'$ (and to page~$p''$ in the former case) in the
+parent~$q$ must be updated to match the new key ranges. 
+Updating the routers in the parent page~$q$ is sufficient, because the pages
+are active, and therefore have only one parent by
+\lemmaref{lemma:active-pages-single-parent}.
+
+An exception to the normal operation of \alg{merge-page} is when
+the page~$p$ is a root page.
+First of all, by \invref{inv:tmvbt-live-count}, a root page of version~$v$
+must contain at least two entries that are alive at version~$v$, unless the
+root page is the only page in the search tree~$S_v$. 
+If $p$ is the only page in~$S_v$, then~$p$ is left as it is until a delete
+operation deletes the last live entry from~$p$.  
+At this point, it is possible to insert a null marker $(\actver,\nullmark)$
+to \rootstar\ to signify that the current version search tree is empty.
+However, for optimizing the space usage of the index, it is also possible to
+allow the searches to locate the root page~$p$. 
+Because $p$ contains no live entries, the queries will immediately notice
+this and stop traversing the search tree.
+If the null marker is inserted to \rootstar\ and $p$ is active, then the
+insertion of $(\actver, \nullmark)$ replaces an existing tuple $(\actver,
+p)$, and $p$ can be deallocated. 
+
+\begin{figure}[tb]
+\begin{center}
+  \subfigure[$p$ active, $s$ active, $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:merge:ama1}
+    \input{images/tmvbt-merge-ama1.tex}}
+  \subfigure[$p$ active, $s$ active, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:ama2}
+    \input{images/tmvbt-merge-ama2.tex}}
+  \subfigure[$p$ active, $s$ inactive, $\liveentries{p} + \liveentries{s}
+  \leq \maxsplit$]{\label{fig:merge:ami1}
+    \input{images/tmvbt-merge-ami1.tex}}
+  \subfigure[$p$ active, $s$ inactive, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:ami2}
+    \input{images/tmvbt-merge-ami2.tex}}
+  \figcaption{Merging an active page~$p$}%
+  {The horizontal axis represents life spans, and the vertical
+  axis key ranges.
+  Case 
+  (a)~represents a merge, 
+  (b)~a redistribution of live entries, 
+  (c)~a merge with an inactive sibling,
+  (d)~a redistribution of live entries with an inactive sibling.}
+  \label{fig:merge-active}
+\end{center}
+\end{figure}
+
+If $p$ is a root page and the height of~$p$ is greater than one, then the
+page-merge operation is triggered by an SMO at a lower level, and we must
+check whether the operation would cause the number of live entries in~$p$ to
+decrease to one.
+If this is the case, then the height of the search tree~$S_v$ will be
+decremented by making the only remaining live child page of~$p$ the
+new root of~$S_v$.
+This cannot be done before the SMO at the lower lever, however, so the
+tree-height-decrease operation must be performed as a part of the SMO at the
+lower level.
+Therefore, after the SMO at the lower level, if the number of entries in the
+root page~$p$ has decreased to one, the only remaining child page~$r$ of $p$
+is located from $p$, and a tuple $(\actver, r)$ is inserted to \rootstar.
+If $p$ is active, this will replace the existing tuple $(\actver, p)$, and
+page~$p$ can be deallocated.
+The cached root page identifier of $S_{\actver}$ must also be updated.
+
+The entire \alg{merge-page} operation, including the possible
+root-page-update operation, is logged with a single redo-only log record
+containing the page identifiers of all related pages---this means pages~$p$,
+$s$, $p'$, $p''$, $q$, and~$r$.
+The log record must contain sufficient information of all the moved
+entries, like the log record of the split-page operation. 
+For example, the log record for a \alg{merge-page} operation that merges an
+active page with an inactive sibling, resulting in a single active page
+(\figref{fig:merge:ami1}), is
+\lrb{T}, \logact{merge-active-inactive}, $p$, $s$, $q$, $E_p$, \lre{E_s},
+where $E_x$ denotes the set of entries present in page~$x$ after the
+operation. 
+Note that in this situation, the active page~$p$ is reused as~$p'$, and thus
+$p'$~is not present in the log record.
+After the log record has been written, the saved path is returned to a proper
+state, so that the active page whose key range covers~$k$ (either~$p'$
+or~$p''$) is placed in the saved path to replace the merged page.
+The operation finishes by releasing the write latches on the pages.
+
+\begin{figure}[!htb]
+\begin{center}
+  \subfigure[$p$ inactive, $s$ active, $\liveentries{p} + \liveentries{s}
+  \leq \maxsplit$]{\label{fig:merge:ima1}
+    \input{images/tmvbt-merge-ima1.tex}}
+  \subfigure[$p$ inactive, $s$ active, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:ima2}
+    \input{images/tmvbt-merge-ima2.tex}}
+  \subfigure[$p$ inactive, $s$ inactive, $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:merge:imi1} 
+    \input{images/tmvbt-merge-imi1.tex}}
+  \subfigure[$p$ inactive, $s$ inactive, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:imi2}
+    \input{images/tmvbt-merge-imi2.tex}}
+  \figcaption{Merging an inactive page~$p$}
+  {The horizontal axis represents life spans, and the vertical
+  axis key ranges.
+  Case
+  (a)~a represents a version split followed by a merge,
+  (b)~a version split followed by a redistribution of live entries,
+  (c)~a version split followed by a merge with an inactive
+  sibling, and
+  (d)~a version split followed by a redistribution of live entries
+  with an inactive sibling.}
+  \label{fig:merge-inactive}
+\end{center}
+\end{figure}
+
+The possible page-merge scenarios for page~$p$ are shown
+in Figures~\ref{fig:merge-active} and \ref{fig:merge-inactive}. 
+In the figures, page~$p$ is merged with a live sibling page~$s$. 
+For consistency with Figures~\ref{fig:split-active} and \ref{fig:split}, the
+resulting active pages are denoted~$p'$ and~$p''$, even though $p' = p$ when
+the page~$p$ is active, and $p'' = s$ when $s$ is active.
+For clarity of presentation, the algorithms now create a new page~$p'$ in the
+situation depicted in \figref{fig:merge:ima1}, and deallocate the existing
+active sibling page~$s$, instead of reusing~$s$ as the resulting merged page. 
+An actual implementation may of course correct this and reuse page~$s$
+instead of creating~$p'$.
+
+\thmskip
+\begin{lemma}
+\label{lemma:merge-page-split-counts}
+The \alg{merge-page} operation maintains
+\invref{inv:tmvbt-live-count}.
+\end{lemma}
+\begin{proof}
+The page~$p$ that is to be merged must have exactly \minlive\ live entries,
+while the sibling page~$s$ can have between \minlive\ and \capacity\ live
+entries. 
+The combined number of live entries $e: 2 \times \minlive \leq e \leq
+\minlive + \capacity$ can always be distributed among the two pages so that
+the number of entries in both pages is between \minsplit\ and \maxsplit. 
+In the minimum case, $2 \times \minlive \geq \minsplit$ entries are
+moved to page $p'$, and page $p''$ is deleted.
+Note also that $2 \times \minlive < \maxsplit$, and
+\invref{inv:tmvbt-minsplit-maxsplit} thus holds for page~$p'$.
+In the maximum case, $\minlive + \capacity$ entries are distributed
+between $p'$ and $p''$, resulting in more than $\minsplit$ and less
+than $\maxsplit$ entries per page. 
+The former holds trivially (as we are distributing more than
+$\maxsplit \geq 2 \times \minsplit$ entries between two pages), and the
+latter holds because $\minlive + \capacity = (\minsplit - s) + (\maxsplit +
+s) = \minsplit + \maxsplit > 2 \times \minsplit$.
+\end{proof}
+\thmskip
+
+\thmskip
+\begin{lemma}
+\label{lemma:tmvbt-latchcount}
+Any structure-modification operation needed in the implementation of
+the \action{insert}, \action{delete}, \action{undo-insert} and
+\action{undo-delete} actions keeps at most five TMVBT pages latched
+simultaneously and transforms a balanced (\defref{def:consistent-balanced})
+TMVBT index into another balanced one. 
+For any of the actions, at most $h+1$ structure modifications are needed,
+where $h$ is the height of the search tree $S_{\actver}$ of the active
+database version \actver.
+\end{lemma}
+\begin{proof}
+As seen from the Figures~\ref{fig:split-active}--\ref{fig:merge-inactive},
+when an SMO is triggered on page~$p$ at level~$l$, at most four pages at
+level~$l$ are involved in the operation.
+In addition to these four, the parent page~$q$ is also latched during the
+SMO\@.
+If a root-page update occurs (either a tree-height-increase or a
+tree-height-decrease), then the root page identifier is also present in the
+log records.
+However, the root page does not increment the number of pages latched at a
+time, because
+(1)~during a tree-height-increase, there is no parent page~$q$, so the maximum
+number of latches required is still five; and
+(2)~during a tree-height-decrease, the new root~$r$ is the page~$p'$, because
+just before the root-page update, $p'$ is the only remaining child page
+of~$q$.
+
+When considering the balance condition,
+Lemmas~\ref{lemma:kill-page-split-counts},
+\ref{lemma:split-page-split-counts} and~\ref{lemma:merge-page-split-counts}
+show that each SMO maintains \invref{inv:tmvbt-live-count}, which proves that
+if the TMVBT is balanced before the SMO, then it is also balanced  
+immediately after the SMO\@.
+\end{proof}
+\thmskip
+
+The following theorem states that the update actions also maintain
+the asymptotic bounds of the MVBT\@:
+
+\thmskip
+\begin{theorem}
+\label{thm:tmvbt-update-cost}
+Assuming that the root page of the database version~$v$ is known, 
+each of the actions \action{insert}, \action{delete}, \action{undo-insert},
+and \action{undo-delete} is performed in time \OhT{\log_{\capacity}
+\entries{\actver}}, where $\entries{\actver}$ is the number of data items in
+the active database version \actver.
+\end{theorem}
+\begin{proof}
+Searching for the correct leaf page to perform the update has a cost of
+\OhT{\log_{\capacity} \entries{\actver}} pages, because the search
+tree~$S_v$ is balanced.
+By \lemmaref{lemma:tmvbt-latchcount}, at most $h+1$ structure-modification
+operations are needed to perform the update, where $h = \OhT{\log_\capacity
+\entries{\actver}}$.
+At each level, at most five pages need to be accessed to perform the
+structure-modification operations.
+The structure-modification operations thus have a maximum cost of
+\OhT{\log_\capacity \entries{\actver}}, which is the same as the initial tree
+traversal.
+\end{proof}
+\thmskip
+
+% Space complexity
+As discussed in \secref{sec:tsbmvbt:mvbt}, the MVBT index has a space
+complexity of \Oh{n/\capacity} database pages, where $n$ is the number of
+updates performed during the history of the database, and \capacity\ is the
+page capacity. 
+This has been proven by Becker
+et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}.
+Their proof relies on the fact that, for leaf pages,
+(1)~each structure-modification operation that targets a page~$p$ creates at
+most a constant number of new pages (at most two); and 
+(2)~at least a constant minimum number of update operations ($\epsilon d$ in
+the discussion of Becker et~al.~\cite{becker:1996:mvbt}, $s$ for the
+TMVBT) must have been performed on a page~$p$ for it to require a
+structure-modification operation.
+Therefore, the amortized cost of the update actions is at most $\Oh{2
+\capacity/s} = \Oh{1}$ new entries, if $s$ is linearly dependant on the
+page capacity~\capacity.
+This directly translates to the reported \Oh{n/\capacity} leaf pages for a
+history of $n$ update actions, because each leaf page holds at least $\minlive
+= \Oh{\capacity}$ entries.
+Similarly, for the index pages of the MVBT, each SMO requires space for at most
+two new index entries at the first index page level (at height two, directly
+above the leaf pages). 
+Becker et~al.~\cite{becker:1996:mvbt} show that these insertions at the
+index level do not increase the amortized space complexity of the update
+actions, if $d \geq \nicefrac{2}{\epsilon}$.
+This translates to $s \geq 2$, which is a reasonable requirement for the
+split tolerance variable in any case.
+ 
+When considering the space complexity of the TMVBT, we note that the premises
+of the MVBT space complexity proof remain true: 
+each SMO creates at most a constant number of new pages (at most two), 
+at most a constant number of new entries (again, two) are inserted into the
+parent page, and 
+at least a minimum number of update actions must target page~$p$ before any
+SMO is required on it ($s$ actions).
+We can thus conclude that the space complexity of the TMVBT is 
+\Oh{n/\capacity} pages, if $s$ is linearly dependent on the page
+capacity~\capacity, and $s \geq 2$.
+
+In the discussion of space complexity for any of the efficient
+multiversion index structures, the complexity has been given in terms of the
+total number of update actions performed on the index structure. 
+However, a transaction may insert many entries which it then later on deletes;
+the index structure should not consume space for the actions that are undone.
+For the TMVBT we can state the space complexity in terms of the number of
+entries that are alive after transactions have committed; in these terms, the
+space complexity is \Oh{(\sum_{v \in V} m_v) / \capacity} database pages,
+where $V$ is the set of all versions, and $m_v$ is the number of entries that are
+alive at version~$v$.
+
+\thmskip
+\begin{theorem}
+The space complexity of the TMVBT index is \[\Oh{\min \{ n, \sum_{v
+\in V} m_v \} / \capacity}.\]
+\end{theorem}
+\begin{proof}
+The proof for the first part of the result, \Oh{n/\capacity}, is the same as the
+proof for MVBT~\cite{becker:1993:optimal,becker:1996:mvbt} (see the discussion
+above). 
+For the next part, consider any fixed version~$v$.
+\invref{inv:tmvbt-live-count} states that each page of the search
+tree~$S_v$ contains at least \minlive\ entries that are alive at version~$v$. 
+Consider now the leaf pages of the search tree~$S_v$. 
+We can see from the SMOs that entries are duplicated only when creating live
+copies of them; that is, duplicates differ in their life spans, not in their
+keys or key ranges.
+This means that within a search tree of any version~$v$, there are no
+duplicates of any of the entries that are alive at version~$v$, and thus there
+are at most $\Oh{m_v/\minlive} = \Oh{m_v/\capacity}$ leaf pages in~$S_v$,
+because we require that \minlive\ is linearly dependent on the page
+capacity~\capacity. 
+Furthermore, by a proof that is similar to the proof
+of~\thmref{thm:btree-range-cost}, there are at most \Oh{m_v/\capacity}
+index pages in the search tree~$S_v$. 
+From this we arrive to our result by summation over the set of all
+versions~$V$.
+\end{proof}
+\thmskip
+
+% Recovery
+In restart recovery from a system crash, an
+\abbr{ARIES}-based~\cite{mohan:1992:aries,mohan:1990:aries-kvl} recovery
+algorithm is used.
+
+\thmskip
+\begin{theorem}
+\label{thm:tmvbt-recovery}
+In the event of a system crash, the redo pass of restart recovery produces a
+balanced TMVBT on which the undo actions by a backward-rolling updating
+transaction (if any) can be performed logically if a physical undo is
+impossible.
+\end{theorem} 
+\begin{proof}
+Each structure-modification operation is performed as a single atomic
+operation that transforms a balanced TMVBT index into another balanced TMVBT
+index. 
+After the redo pass has finished, the TMVBT index is therefore balanced.
+Thus, each of the undo actions is performed logically, if a physical undo is
+not possible.
+\end{proof}
+\thmskip
+
+
+
+%% Challenges With Concurrent Updates
+%%---------------------------------------------------------------------
+\section{Challenges With Concurrent Updates}
+\label{sec:tmvbt:multiupdate}
+
+The structure-modification operations presented in the previous section
+are based on the fact that there can be only a single updating transaction
+operating on the index structure at a time.
+We believe that it is not directly possible to further generalize the index
+structure so that multiple updating transactions could apply their updates
+directly on the leaf pages of the TMVBT index.
+We now present an example of the problematic situations that can arise should
+multiple updating transactions be allowed to operate on the index
+concurrently.
+
+Assume that a transaction~$T_1$ has created a leaf page~$p$ that contains two
+entries inserted by the transaction. 
+In this illustrative example, we have set $\minlive = 2$, so that
+\invref{inv:tmvbt-live-count} holds for the index structure. 
+The situation after~$T_1$ has committed with a commit-time version
+$\commitver{T_1} = 1$ is depicted in \figref{fig:tmvbt:multi-update:initial}.
+
+Assume now that two active updating transactions~$T_2$ and~$T_3$ perform
+updates so that (1)~$T_2$~inserts entries with keys preceding and succeeding
+the keys of the entries inserted by~$T_1$; and 
+(2)~$T_3$~deletes the entries inserted by~$T_1$.
+If we wish to be able to store the updates of multiple active updating
+transactions in the leaf pages of the TMVBT index, we must use entries such as
+the pending updates defined in \chapref{chapter:mv-data} (see
+\defref{def:pending-update}). 
+One possible way of modeling this situation is shown in
+\figref{fig:tmvbt:multi-update:active}.
+
+\begin{figure}[!htb]
+\begin{center}
+\input{images/tmvbt-concurrent-fail}
+\figcaption{TMVBT invariant fails with concurrent updates}%
+{If transaction~$T_3$ commits before~$T_2$, the number entries that are alive
+at version~\num{2} is zero.}
+\label{fig:tmvbt:multi-update}
+\end{center}
+\end{figure}
+
+If~$T_2$ commits first with $\commitver{T_2} = 2$, and
+$T_3$ afterwards with $\commitver{T_3} = 3$, the logical
+state of the database after both commit operations is shown in
+\figref{fig:tmvbt:multi-update:t2first}. 
+We assume here that a lazy timestamping scheme is employed so that the
+actual entries stored in the database may be the same entries as shown in
+\figref{fig:tmvbt:multi-update:active}, but when the page is
+later accessed the pending updates on the page will be converted into the
+entries shown in \figref{fig:tmvbt:multi-update:t2first}.
+In this situation, \invref{inv:tmvbt-live-count} holds for the page~$p$,
+because $\entries{1} = 2$, $\entries{2} = 6$, and $\entries{3} = 4$; where
+\entries{v} denotes the number of entries that are alive at version~$v$.
+
+Suppose now that transactions~$T_2$ and~$T_3$ commit in reverse order, so
+that $T_3$ commits first with $\commitver{T_3} = 2$, and $T_2$ commits later
+with $\commitver{T_2} = 3$. 
+The situation after these commits is shown in
+\figref{fig:tmvbt:multi-update:t3first}.
+Now, $\entries{2} = 0$, and \invref{inv:tmvbt-live-count} does not hold.
+Clearly, situations such as these should be prevented if the optimality of the
+TMVBT index is to be preserved.
+
+To prevent such situations we would have to be able to (1)~identify such
+situations when the updating transactions are active, and (2)~remedy the
+situation by applying proper structure-modification operations.
+The situations must be identified while the transactions are active, because
+we cannot assume that the invariant could be checked and enforced at
+transaction commit, because this would require that each page the transaction
+has modified be checked during transaction commit, which is too costly to be
+practical.
+Secondly, even if we assume that such situations could be identified
+when the updating transactions are active, it may be impossible to remedy the
+situation.
+To show this, consider the example situation shown in
+\figref{fig:tmvbt:multi-update:active}.
+As \figref{fig:tmvbt:multi-update:t3first} shows, this situation may lead to
+the invalidation of \invref{inv:tmvbt-live-count}.
+Normally, when the number of live entries in a page falls below \minlive, it
+is possible to merge the page with a sibling page.
+In this situation, however, there is no more room on the page for it to be
+merged with any sibling page, and the page cannot be version-split because
+the ordering of the entries created by the active transactions is not known.
+We conclude that we cannot allow multiple updating transactions to apply
+updates on the leaf pages of the TMVBT index directly, if the optimality of
+the index is to be maintained.
+
+
+
+%% Summary
+%%---------------------------------------------------------------------
+\section{Summary}
+\label{sec:tmvbt:summary}
+
+The TMVBT index is an optimal multiversion index for key-range queries (i.e.,
+\qtype{$x$/$-$/point} queries, see \secref{sec:mv-data:queries}), provided
+that the root of the queried version is known. 
+However, only a single updating transaction can operate on it at a time.
+The algorithms presented in this chapter are efficient, because no
+key-level locking is required, and no latch-coupling is needed. 
+As such, the TMVBT index is an optimal multiversion index structure for any
+application where there is only a single source of updates, and many
+clients performing queries.
+Our goal is, however, to design an efficient general-purpose multiversion
+index structure.
+The next chapter reviews the concurrent multiversion \Btree\ (CMVBT), which
+is a general-purpose multiversion index that is based on the optimal TMVBT
+index.
+Multiple updating transaction can operate on the CMVBT index concurrently.
+

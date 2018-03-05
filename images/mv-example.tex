@@ -1,0 +1,105 @@
+\begin{tikzpicture}[x=4em,y=3.7em,label distance=0pt]
+  \tiny
+
+  \node[rnode,draw] (p1) at (0,2)
+    {\centerrows{4.2em}{$p_1$\\$[-\infty,\infty)$\\$[-\infty,\infty)$}};
+  \node[rnode,right=0 of p1] (p1text) 
+    {\raggedrows{10em}{= Page identifier\\= Key range\\= Life span}};
+  
+  \node[rnode,draw] (p2) at (-1.5,1) 
+    {\centerrows{4.2em}{$p_2$\\$[-\infty,\infty)$\\$[-\infty,10)$}};
+  \node[rnode,draw] (p3) at (0,1) 
+    {\centerrows{4.2em}{$p_3$\\$[-\infty,100)$\\$[10,\infty)$}};
+  \node[rnode,draw] (p4) at (1.5,1) 
+    {\centerrows{4.2em}{$p_4$\\$[100,\infty)$\\$[10,\infty)$}};
+
+  \node[rnode,draw] (p5) at (-1,0) 
+    {\centerrows{4.2em}{$p_5$\\$[-\infty,25)$\\$[-\infty,\infty)$}};
+  \node[rnode,draw] (p6) at (0,0) 
+    {\centerrows{4.2em}{$p_6$\\$[25,75)$\\$[10,\infty)$}};
+  \node[rnode,draw] (p7) at (1,0) 
+    {\centerrows{4.2em}{$p_7$\\$[75,100)$\\$[10,\infty)$}};
+
+  % Connectors
+  \foreach \x in {p2,p3,p4}
+    \draw[-] (p1.south) -- (\x.north);
+  \foreach \x in {p5,p6,p7}
+    \draw[-] (p3.south) -- (\x.north);
+  
+  \draw (p2.south) -- (p5.north);
+
+  % Not shown pages
+  \newdimen\tmpx
+  \newdimen\tmpy
+
+  \pgfextracty{\tmpy}{\pgfpointanchor{p5}{north}}
+  \pgfextractx{\tmpx}{\pgfpointanchor{p2}{south}}
+  \draw[-] (p2.south) -- ($(\tmpx,\tmpy) + (-.2,0)$);
+  \draw[-] (p2.south) -- ($(\tmpx,\tmpy) + (-.5,0)$);
+  \draw[-] (p2.south) -- ($(\tmpx,\tmpy) + (-.8,0)$);
+  \node at ($(\tmpx,\tmpy) + (-.5,-3ex)$) {\ldots};
+
+  \pgfextracty{\tmpy}{\pgfpointanchor{p5}{north}}
+  \pgfextractx{\tmpx}{\pgfpointanchor{p4}{south}}
+  \draw[-] (p4.south) -- ($(\tmpx,\tmpy) + (.2,0)$);
+  \draw[-] (p4.south) -- ($(\tmpx,\tmpy) + (.5,0)$);
+  \draw[-] (p4.south) -- ($(\tmpx,\tmpy) + (.8,0)$);
+  \node at ($(\tmpx,\tmpy) + (.5,-3ex)$) {\ldots};
+
+  \pgfextracty{\tmpy}{\pgfpointanchor{p7}{south}}
+  \pgfextractx{\tmpx}{\pgfpointanchor{p4}{east}}
+
+  \path[draw,dashed,rounded corners] ($(p1.north west) + (-2ex,2ex)$) -- 
+    ($(p1.north east) + (2ex,2ex)$) --
+    ($(p3.north east) + (2ex,2ex)$) --
+    ($(p4.north east) + (2ex,2ex)$) --
+    ($(\tmpx,\tmpy) + (2ex,-2ex)$) -- 
+      node[below,near start] {Search tree of version \num{10}} 
+    ($(p5.south west) + (-2ex,-2ex)$) --
+    ($(p5.north west) + (-2ex,2ex)$) --
+    ($(p6.north west) + (-2ex,2ex)$) -- cycle;
+
+  % Key ranges and key-space cover
+  % Level 2
+  \coordinate[right=1 of p4,label=left:{$10$}] (l2p1);
+  \coordinate (l2p2) at ($(l2p1) + (1.25,0)$);
+  \coordinate (l2p3) at ($(l2p2) + (0.25,0)$);
+  \coordinate[label=above:{$100$}] (l2p2u) at ($(l2p2) + (0,.25)$);
+
+  \draw (l2p1) rectangle node {$p_3$} 
+    (l2p2u) rectangle node {$p_4$} 
+    (l2p3) rectangle node {$p_2$}
+    ($(l2p1) + (0,-.25)$); 
+
+  % Level 3 (root page)
+  \coordinate[above=1 of l2p1] (l3p1);
+  \coordinate (l3p2) at ($(l3p1) + (1.5,0)$);
+  \draw ($(l3p1) + (0,-0.3)$) rectangle
+     node {$p_1$} 
+     node[below=1.5em] {\tiny Keys}
+     ($(l3p2) + (0,0.3)$);
+  \node[rotate=90,left=0pt of l3p1,anchor=south] {\tiny Versions};
+
+  % Level 1 (leaf pages)
+  \coordinate[below=1 of l2p1,label=left:{$10$}] (l1p1);
+  \coordinate (l1p2) at ($(l1p1) + (0.34,0)$);
+  \coordinate[label=above:{$25$}] (l1p2u) at ($(l1p2) + (0,.25)$); 
+  \coordinate (l1p3) at ($(l1p2) + (0.50,0)$);
+  \coordinate[label=above:{$75$}] (l1p3u) at ($(l1p3) + (0,.25)$); 
+  \coordinate (l1p4) at ($(l1p3) + (0.41,0)$);
+  \coordinate[label=above:{$100$}] (l1p4u) at ($(l1p4) + (0,.25)$); 
+  \coordinate (l1p5) at ($(l1p4) + (0.25,0)$);
+
+  \draw ($(l1p1) + (0,.25)$) rectangle ($(l1p5) + (0,-.25)$);
+  \draw ($(l1p1) + (0,-.25)$) rectangle node {$p_5$} 
+    (l1p2u) rectangle node {$p_6$} 
+    (l1p3) rectangle node {$p_7$} 
+    (l1p4u);
+
+%   \draw[-|] (l1p1) -- (l1p2);
+%   \draw[|-|] (l1p2) -- node[above] {$p_5$} (l1p3);
+%   \draw[|-|] (l1p3) -- node[above] {$p_6$} (l1p4);
+%   \draw[|-|] (l1p4) -- node[above] {$p_7$} (l1p5);
+%   \draw[|-] (l1p5) -- (l1p6);
+%   
+\end{tikzpicture}

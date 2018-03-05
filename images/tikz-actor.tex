@@ -1,0 +1,88 @@
+% Notes
+% \pgfpointanchor references by object name, not shape name (doh)
+% so it cannot be used in object construction
+
+\makeatletter
+\pgfdeclareshape{actor}{
+\savedanchor{\scalexy}{%
+  \setlength{\pgf@xa}{\pgfshapeminwidth}%
+  \pgfpoint{\pgf@xa}{\pgf@xa}%
+}
+\savedanchor{\textpos}{%
+  \setlength{\pgf@xa}{\pgfshapeminwidth}%
+  \setlength{\pgf@yb}{\pgfshapeinnerysep}%
+  \pgfpoint{0}{-0.5\pgf@xa}%
+  \advance \pgf@x by -.5\wd\pgfnodeparttextbox%
+  \advance \pgf@y by -\ht\pgfnodeparttextbox%
+  \advance \pgf@y by -\pgf@yb%
+}
+\savedanchor{\leftpos}{%
+  \setlength{\pgf@xa}{\pgfshapeminwidth}%
+  \setlength{\pgf@xb}{\pgfshapeinnerxsep}%
+  \pgfpoint{-.25\pgf@xa}{.1\pgf@xa}%
+  \advance \pgf@x by -\pgf@xb%
+}
+\savedanchor{\southeast}{%
+  \setlength{\pgf@xa}{\pgfshapeminwidth}%
+  \setlength{\pgf@yb}{\pgfshapeinnerysep}%
+  \pgfpoint{.5\wd\pgfnodeparttextbox}{-.5\pgf@xa}%
+  \advance \pgf@y by -\ht\pgfnodeparttextbox%
+  \advance \pgf@y by -\pgf@yb%
+  \ifdim\pgf@x<.25\pgf@xa
+    \pgf@x=.25\pgf@xa
+  \fi
+}
+%\saveddimen{\scale}{
+%  \setlength{\pgf@xa}{\pgfshapeminwidth}
+%  \pgfpoint{\pgf@xa}{\pgf@xa}}
+%\pgfextract@process\leftfoot{\scalexy \pgfpoint{-.25\pgf@x}{-.5\pgf@y}}
+\anchor{center}{\scalexy \pgfpoint{0}{.1\pgf@y}}
+\anchor{left foot}{\scalexy \pgfpoint{-.25\pgf@x}{-.5\pgf@y}}
+%\anchor{left foot}{\leftfoot}
+\anchor{right foot}{\scalexy \pgfpoint{.25\pgf@x}{-.5\pgf@y}}
+\anchor{left hand}{\scalexy \pgfpoint{-.25\pgf@x}{.1\pgf@y}}
+\anchor{right hand}{\scalexy \pgfpoint{.25\pgf@x}{.1\pgf@y}}
+\anchor{left}{\leftpos}
+\anchor{right}{\leftpos \pgfpoint{-\pgf@x}{\pgf@y}} 
+\anchor{groin}{\scalexy \pgfpoint{0}{-.25\pgf@y}}
+\anchor{chin}{\scalexy \pgfpoint{0}{.2\pgf@y}}
+\anchor{head center}{\scalexy \pgfpoint{0}{.35\pgf@y}}
+\anchor{top}{\scalexy \pgfpoint{0}{.5\pgf@y}}
+\anchor{text}{\textpos}
+\anchor{east}{\southeast \pgf@y=0pt}
+\anchor{west}{\southeast \pgf@x=-\pgf@x \pgf@y=0pt}
+%\anchor{east}{\scalexy \pgfpoint{.25\pgf@x}{.1\pgf@y}}
+%\anchor{west}{\scalexy \pgfpoint{-.25\pgf@x}{.1\pgf@y}}
+\anchor{south}{\southeast \pgf@y=0}
+\anchor{south east}{\southeast}
+\anchor{south west}{\southeast \pgf@x=-\pgf@x}
+\anchor{center}{\pgfpointorigin}
+\backgroundpath{
+  \pgf@process{\scalexy}
+  \setlength{\pgf@xa}{\pgf@x}
+  \setlength{\pgf@ya}{\pgf@y}
+  % Body
+  \pgfpathmoveto{\pgfpoint{0}{.2\pgf@ya}} % chin
+  \pgfpathlineto{\pgfpoint{0}{-.25\pgf@ya}} % groin
+  
+  % Feet
+  %\pgfpathlineto{\leftfoot} % left foot
+  \pgfpathlineto{\pgfpoint{-.25\pgf@xa}{-.5\pgf@ya}} % left foot
+  \pgfpathmoveto{\pgfpoint{0}{-.25\pgf@ya}} % groin
+  \pgfpathlineto{\pgfpoint{.25\pgf@xa}{-.5\pgf@ya}} % right foot
+  
+  % Arms
+  \pgfpathmoveto{\pgfpoint{-.25\pgf@xa}{.1\pgf@ya}} % left hand
+  \pgfpathlineto{\pgfpoint{.25\pgf@xa}{.1\pgf@ya}} % right hand
+  
+  % Head  
+  \setlength{\pgf@xb}{.15\pgf@xa} 
+  \pgfpathcircle{\pgfpoint{0}{.35\pgf@ya}}{\pgf@xb} % head center 
+
+  \pgfpathmoveto{\pgfpoint{0}{-.25\pgf@ya}} % groin
+
+  % Move to text anchor to extend the MBR of the image downwards
+  \pgfpathmoveto{\textpos}
+}
+}
+\makeatother

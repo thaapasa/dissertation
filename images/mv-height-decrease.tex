@@ -1,0 +1,40 @@
+\begin{tikzpicture}[x=3.5em,y=3.7em,% 
+vlabel/.style={font=\scriptsize,left=0.2em,near start}]
+
+%\fill[blue!50] (-1,-1) rectangle (5,3);
+
+\node[page,dead] (p1) at (0,0) {};
+\node[page] (p2) at (1,0) {};
+\node[page,dead] (p3) at (2,0) {};
+\node[page] (p4) at (3,0) {};
+\node[page] (p5) at (4,0) {};
+\node[page,dead] (p6) at (5,0) {};
+
+\node[page,dead] (p7) at (0.8,1) {};
+\node[page,dead] (p8) at (2.2,1) {};
+
+\node[page] (p9) at (3.5,1) {};
+
+\node[page,dead] (p10) at (1.5,2) {};
+
+\node[db] (roots) at (4.5, 2.5) {\footnotesize$\rootstarp$};
+
+\draw (p7.south) -- (p1.north);
+\draw (p7.south) -- (p2.north);
+\draw (p8.south) -- (p3.north);
+\draw (p8.south) -- (p4.north);
+\draw (p10.south) -- (p7.north);
+\draw (p10.south) -- (p8.north);
+
+\draw (p9.south) -- (p2.north);
+\draw (p9.south) -- (p4.north);
+\draw (p9.south) -- (p5.north);
+
+ 
+\draw[->,densely dotted] (roots) to[bend left=10] (p6.north);
+\draw[->] (roots) to[bend right=10] 
+           node[vlabel] {\parbox{4em}{\center Selected version}}
+           (p9.north); 
+\draw[->,densely dotted] (roots) to[bend right=10] (p10.east);
+
+\end{tikzpicture}

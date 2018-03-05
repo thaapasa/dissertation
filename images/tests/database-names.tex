@@ -1,0 +1,17 @@
+\begin{tabular}{lp{10cm}}
+\themph{Name} & \themph{Explanation}\\
+\toprule
+CMVBT & Concurrent multiversion \Btree\ (\chapref{chapter:cmvbt})\\
+CMVBT-$i$ & Concurrent multiversion \Btree, with the maintenance transaction
+run after each $i$th transaction has committed
+(\secref{sec:performance:implementation})\\ 
+TMVBT & Transactional multiversion \Btree\ (\chapref{chapter:tmvbt})\\
+TSB-D & \TSBtree\ with the deferred split policy
+(Sections~\ref{sec:tsbmvbt:tsb} and~\ref{sec:performance:implementation})\\ 
+TSB-W & \TSBtree\ with the WOB-tree split policy 
+(Sections~\ref{sec:tsbmvbt:tsb} and~\ref{sec:performance:implementation})\\ 
+TSB-I & \TSBtree\ with the isolated-key-split policy
+(Sections~\ref{sec:tsbmvbt:tsb} and~\ref{sec:performance:implementation})\\ 
+MV-VBT & Versioned \Btree\ used as a multiversion index 
+(\secref{sec:mv-index:btree})\\
+\end{tabular}

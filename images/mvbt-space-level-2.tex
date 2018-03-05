@@ -1,0 +1,33 @@
+\begin{tikzpicture}[x=2em,y=2em]
+  \small
+  \coordinate (o) at (0,0);
+  \coordinate (ok) at ($(o) + (0,3.7)$);
+  \coordinate (ov) at ($(o) + (6.7,0)$);
+  \coordinate[label=below:{$v_0$}] (v0) at (o); 
+  \coordinate[label=below:{$v_1$}] (v1) at ($(o) + (1,0)$); 
+  \coordinate[label=below:{$v_2$}] (v2) at ($(o) + (2,0)$);
+  \coordinate[label=below:{$v_3$}] (v3) at ($(o) + (3,0)$);
+  \coordinate[label=below:{$v_4$}] (v4) at ($(o) + (4,0)$);
+  \coordinate[label=below:{$v_5$}] (v5) at ($(o) + (5,0)$);
+  \coordinate[label=below:{$v_6$}] (v6) at ($(o) + (6,0)$);
+
+  %\draw (1,0) rectangle node {$p_9$} (5,3);
+  \draw (1,0) -- (1,3);
+  \draw (4,0) -- (4,3);
+  \draw[opendash] decorate [opendeco] { (1,3) -- (4,3) };
+ 
+  \draw[opendash] decorate [opendeco] { (4,3) -- (6,3) };
+
+  \draw[opendash] decorate [opendeco] { (6,0) -- (6,3) };
+
+  \node at (5,1.5) {$p_{10}$};
+  \node at (2.5,1.5) {$p_{9}$};
+
+  % Router in page p9 to page p5 at the lower level
+  \draw[dashed] (2.1,0.1) rectangle node {$\ptr p_5$} (3.9,0.9);
+  % Router in page p10 to page p5 at the lower level
+  \draw[dashed] (4.1,0.1) rectangle node {$\ptr p_5$} (4.9,0.9);
+
+  \draw[->] (o) -- node[below=1em,lbl] {Versions} (ov);
+  \draw[->] (o) -- node[above,sloped,lbl] {Keys} (ok);
+\end{tikzpicture}

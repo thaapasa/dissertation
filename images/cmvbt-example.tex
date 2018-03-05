@@ -1,0 +1,18 @@
+\begin{tikzpicture}[x=1.5em,y=1.5em]
+
+\node[dbl,minimum width=3em] (tmvbt)
+  {\footnotesize\parbox{2em}{\centering $1$\\$2$\\$3$\\~}};
+\node[below=0.2 of tmvbt] {\footnotesize TMVBT};
+
+\node[dbl,minimum width=3em,right=1 of tmvbt] (vbt)
+  {\footnotesize\parbox{2em}{\centering $101$\\$102$\\$103$\\$104$}};
+\node[below=0.2 of vbt] (vbtlab) {\footnotesize VBT};
+
+\node[right=1.8 of vbtlab] (ctilab) {\footnotesize CTI};
+\node[rounded rectangle,draw=black!100,above=0.2 of ctilab] (cti) 
+  {\footnotesize\parbox{4em}{\centering $4 \to 103$\\$5 \to 101$}};
+
+\node[above=0.5 of cti] (variables) 
+  {\footnotesize\parbox{5em}{\flushright $\stablever = 3$\\$\comver = 5$}};
+
+\end{tikzpicture}

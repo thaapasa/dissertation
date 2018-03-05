@@ -1,0 +1,307 @@
+%%=====================================================================
+%% Introduction
+%%=====================================================================
+\chapter{Introduction}
+\label{chapter:introduction}
+
+% Sections are not needed in introduction.
+
+% Some notes:
+% - 1st paragraph: why do we need versions?
+% - Explain how different applications use versions
+% - Optimality not too soon, some definition needed
+%   - Same for non-optimality
+% - Goal goes to the end of the introduction, not at the beginning
+
+
+% General introduction to the subject (we need data history)
+Modern society has become dependent on large software systems that
+rely on databases for storing important data.
+These database systems traditionally maintain only a single version of the
+stored data set. 
+Updates to the database erase the information content of any
+previous states, and therefore these databases cannot be
+used efficiently by any application that needs to query the history
+of the database.
+There are many applications, however, that do require access to
+previous database states, such as trend-processing and inventory control
+applications.
+%For example, online analytical processing (\abbr{OLAP})
+%applications need to query historical data to find out commercially
+%relevant trends or patterns of behaviour,  
+%engineering design applications need to store the different versions of a
+%product's design,
+%and inventory control applications need to have access to the
+%previous states of the inventory.
+Furthermore, any business-critical applications would benefit from the
+accountability and traceability that is obtained when the past database
+states are not deleted, so that it is always possible to find out
+\emph{if} a change to the database state has occurred, and \emph{what} was
+changed.
+
+% More details on applications that need access to data history
+In general, we can identify several major application areas
+that require access to past database states. 
+These are, for example, applications that deal with evolving data,
+such as engineering design, land register, and scheduling applications,
+inventory control systems and moving object
+databases~\cite{becker:1996:mvbt,bercken:1996:multiversion,ozsoyoglu:1995:survey};
+statistical applications such as decision support systems and
+online analytical processing (\abbr{OLAP})
+applications~\cite{bercken:1996:multiversion,jensen:2001:timestamping};
+and applications that require accountability, such as medical,
+legal, financial, accounting, banking, and insurance
+applications~\cite{jensen:2001:timestamping,lomet:1989:tsb,ozsoyoglu:1995:survey}.
+It is theoretically possible to reconstruct past database states
+based on database logs and system backups, but this is time-consuming
+and costly, and thus not feasible for everyday statistical queries.
+The applications listed here need a database structure that is
+specifically tailored for storing the evolution of the data
+items alongside with the data items themselves.
+These kind of databases are generally called \emph{temporal
+databases}~\cite{bohlen:1998:consensus}.
+
+% What is time in temporal databases?
+When new updates are made to a temporal database, the database states are
+updated to reflect the state of the world at different time instants.
+In temporal database theory, there are two orthogonal
+definitions for system-supported time: transaction time and valid
+time~\cite{bohlen:1998:consensus}.
+\emph{Valid time} is used to record the time when a modelled event happens in
+the real world, and \emph{transaction time} is used to mark the time when an
+event or a data item has been recorded in the database. 
+Temporal databases that support both of these time dimensions are
+called \emph{bitemporal databases}~\cite{bohlen:1998:consensus}.
+A traditional database that does not incorporate either valid time or
+transaction time is called a \emph{snapshot database}.
+
+% Persistence
+Some transaction-time databases allow data items to evolve along
+different time lines, so that a new version may be based on any
+previous version, not just the latest current version.
+This time model is required by applications such as engineering design
+software and version control systems, and the databases that
+follow this model are called \emph{fully
+persistent databases}~\cite{salzberg:2004:framework}. 
+Most of the temporal databases, however, are designed to work with a single
+linear data history, in which a new version of the data set is always created
+based on the most recent database version.
+These database systems are called \emph{partially persistent databases}, and
+they are used by applications that record events that happen in the
+real world.
+Partially persistent transaction-time databases are called
+\emph{multiversion databases} by many
+authors~\cite{becker:1996:mvbt,bercken:1996:multiversion,jouini:2007:multiversion,lomet:1989:tsb,varman:1997:multiversion},
+and the different transaction-time instants in these databases
+are called \emph{versions}.
+The database thus starts with an initial version, and any updates to the
+database create new versions of the stored data item set.
+The most recent version of the database is called the \emph{current version}
+of the database.
+In this dissertation, we concentrate our research on multiversion
+databases.
+
+% What kind of index structures there are for temporal databases?
+Temporal databases are not a new idea.
+The need for supporting the time dimension in database systems has
+been long identified; for example, Bubenko has presented a conceptual
+framework for incorporating the temporal dimension into database
+management systems some thirty years ago~\cite{bubenko:1977:temporal}.
+Consequently, there now exists a multitude of different temporal
+database index structures.
+Most of these are specifically tailored for
+some operations, and they are either inefficient for other standard
+database operations, or their performance may deteriorate with some
+histories of user actions.
+Because of this, these structures are not suitable for use as 
+general-purpose temporal indexes.
+For example, multiversion index structures that are based on hashing
+techniques are very efficient for single-key
+queries~\cite{kollios:2002:hashing}, but they cannot be used for
+efficient key-range queries.
+Similarly, tree-duplicating 
+%and path-duplicating 
+indexes can be queried efficiently~\cite{salzberg:1999:comparison}, but
+updating them is inefficient.
+To our knowledge, the most efficient multiversion 
+indexes are the time-split \Btree~(\TSBtree) of Lomet and
+Salzberg~\cite{lomet:1990:tsb-performance,lomet:1989:tsb}, the multiversion
+\Btree~(MVBT) of Becker et~al.~\cite{becker:1993:optimal,becker:1996:mvbt},
+and the multiversion access method~(MVAS) of Varman and
+Verma~\cite{varman:1997:multiversion}.
+
+% Definition of efficiency and intro to B-trees
+The comparison of different multiversion index structures is
+naturally dependent on how we define the efficiency of a given index
+structure. 
+One such ranking is based on the \emph{asymptotic optimality} of the
+index operations.
+That is, if we can define what the performance of an optimal
+multiversion index structure is, we can compare the structures by
+analyzing how much their performance differs from the optimal
+performance.
+In single-version (snapshot) databases, the most commonly used index
+structure is the 
+B-tree~\cite{bayer:1972:btree,bayer:1977:btree-concurrency,comer:1979:btree}. 
+The B-tree has many variants, of which the \Btree\ is the most
+often used.
+The \Btree\ is regarded to be an asymptotically optimal database
+index structure for snapshot databases.
+All single-key operations on the \Btree\ (item query, insertion, and
+deletion) require access to \OhT{\log_\capacity m} pages of the \Btree\
+index~\cite{comer:1979:btree}, where $m$ is the number of data items indexed
+by the \Btree\ and \capacity\ is the page capacity; and the range-query
+operation requires access to \OhT{\log_\capacity m + r/\capacity} \Btree\
+pages, where $r$ is the number of data items in the queried range. 
+This holds for all histories of user actions and guarantees that the
+performance of the \Btree\ index never deteriorates.
+
+% Definition of MV index efficiency
+When querying for data items of a given version~$v$, an ideal multiversion
+index structure should work as efficiently as a single-version index
+structure that only contains the items that are part of the queried
+version~$v$.
+Conceptually, an index structure that creates a new index tree for each
+database version achieves this optimality for all query actions, assuming
+that the root page of the queried version is known; but not for update actions.
+The single-key operations in an asymptotically optimal multiversion index
+structure may thus require access to at most \Oh{\log_\capacity
+\entries{v}}~disk pages, where \entries{v} is the number of data items that
+are part of the queried version~$v$; and the range-query operation may
+require access to at most \Oh{\log_\capacity \entries{v} + r/\capacity}
+pages. 
+With this definition, only the
+MVBT~\cite{becker:1993:optimal,becker:1996:mvbt} is optimal. 
+The MVAS~\cite{varman:1997:multiversion} guarantees a slightly different
+upper bound on the number of page accesses per operation (see
+\secref{sec:tsbmvbt:mvas}), and the
+\TSBtree~\cite{lomet:1989:tsb,lomet:1990:tsb-performance} has no guarantees if
+the database history contains deletions.
+
+% Key-ranges are important
+%Another important query action for databases is 
+%The key-range query is a crucial operation in databases.
+% Efficient key-range queries are fundamental to a database index structure,
+% because all index scan and index join operations are based on the key-range
+% query.
+% Again, with snapshot databases, a sparse \Btree\ index can be used to
+% retrieve the $r$ data items that belong to a given key range by accessing at
+% most \Oh{\log_\capacity m + r/\capacity} database pages, where $B$ is the
+% number of entries that can fit into a single page.
+% A dense \Btree\ index needs to access at most \Oh{\log_\capacity m +
+% r/\capacity + r} = \Oh{\log_\capacity m + r} pages, because each of the $r$
+% data items may be stored in different pages. 
+% Because $r/B$ is the theoretical minimum number of pages that need to
+% be accessed to retrieve $r$ data items from the pages of a sparse index that
+% can contain at most $B$ entries each, and $r$ is the minimum number of pages
+% that need to be accesses with a dense index if each data item is stored in a
+% different page, the \Btree\ is also optimal for key-range
+% queries. 
+% Note that both dense and sparse indexes access only \Oh{\log_\capacity m +
+% r/\capacity} pages of the index structure. 
+% The \Oh{r} pages that a dense index may need to access are the data pages
+% where the data items are stored, which are not part of the index structure.
+% We therefore require that an optimal multiversion
+% database index needs to access at most \Oh{\log \entries{v} + r/B} database
+% pages for a key-range query that returns $r$~data items.
+% The MVBT and the MVAS both meet this requirement. 
+
+% More requirements for MV index
+There are still other requirements for a multiversion database index
+structure that is to be used in a general-purpose database management system.
+Firstly, it must be possible to perform multiple updates within a
+single version in the database to accommodate all the updates of a
+multi-action updating transaction. 
+Both the MVBT and the MVAS unfortunately require that each update creates a
+new version, so that multiple updates always result in multiple versions of
+the database.
+Secondly, it must be possible to use concurrency-control and recovery
+algorithms with the index structure so that multiple transactions
+may query and update the index structure concurrently.
+The MVBT and the MVAS only allow a single updating transaction to make
+modifications to the structure at a time, and the transaction cannot
+be rolled back.
+The TBS-tree~\cite{lomet:1989:tsb,lomet:1990:tsb-performance} does
+not have these restrictions, but it fails to guarantee optimality for any of
+its operations if the database history contains deletions.
+
+% Purpose of dissertation
+The purpose of this dissertation is to design and implement an efficient
+multiversion database index structure for indexing the evolution of the 
+logical data set. 
+The structure should be optimal, or as close to optimal as possible; and the
+structure must be usable in a multi-user environment with multiple updating
+and read-only transactions that are running concurrently.
+We have selected the asymptotically optimal multiversion \Btree\ structure of
+Becker et~al.~\cite{becker:1993:optimal,becker:1996:mvbt} as the basis of our
+research work. 
+Our index structure is based on the ideas we have presented in two
+conference articles~\cite{haapasalo:2009:tmvbt,haapasalo:2009:cmvbt}
+and one PhD workshop article~\cite{haapasalo:2008:concurrency}; 
+I have been the primary author in all of these articles.
+We have shown how to extend the MVBT structure into the \emph{transactional
+multiversion \Btree} (TMVBT) so as to allow a single multi-action transaction
+to operate on the structure at a time~\cite{haapasalo:2009:tmvbt}, but 
+we have not been able to extend the TMVBT further so that multiple updating
+transactions could operate on it concurrently, without compromising the
+optimality of the index structure.
+We have therefore used a separate main-memory-resident versioned \Btree\
+(VBT) structure to store the updates of active transactions, so that a system
+maintenance transaction can apply the updates of committed transactions to
+the TMVBT successively, one transaction at a
+time~\cite{haapasalo:2009:cmvbt}.
+We call the combined index structure the \emph{concurrent multiversion
+\Btree}, or CMVBT\@.
+
+Logical data consistency in the CMVBT can be maintained by using any standard
+multiversion concurrency-control algorithm, such as snapshot
+isolation~\cite{berenson:1995:sql-critique,fekete:2005:snapshot-isolation,cahill:2008:snapshot}.
+Our algorithms are based on the \abbr{ARIES} recovery
+algorithm~\cite{mohan:1992:aries,mohan:1990:aries-kvl}, and we perform
+structure-modification operations (SMOs) on all of the index
+structures atomically, so that each SMO transforms a structurally valid and
+balanced index structure into another structurally valid and balanced
+index~\cite{jaluta:2003:recoverable,jaluta:2005:blink,jaluta:2006:page-server}.
+
+We show in this dissertation that the combined CMVBT index is efficient:
+the performance of the CMVBT is comparable to that of the \TSBtree\ in
+general transaction processing, but the CMVBT outperforms the \TSBtree\ in
+range queries when the database history contains key deletions.
+The \TSBtree\ performs worse with key deletions because it does not merge
+pages.
+We further strengthen the test results by showing that the performance of the
+combined CMVBT index organization is comparable to the performance of the
+optimal TMVBT index.
+In fact, with longer transactions, the CMVBT performs better, because the
+main-memory-resident VBT index groups all the updates of a single transaction
+together, thus enabling them to be inserted in the TMVBT as an efficient
+batch update. 
+Batch updating is commonly used to increase the performance of index
+structures~\cite{pollari-malmi:1996:batch-updates,pollari-malmi:2000:differential-index}.
+
+% Outline of dissertation
+We begin the dissertation with a general introduction to multiversion
+database theory in \chapref{chapter:mv-data}. 
+After that, in \chapref{chapter:mv-index}, we describe the evolution of
+multiversion index structures and present a survey of some of the existing
+structures.
+In \chapref{chapter:tsbmvbt}, we review three of the most efficient
+multiversion structures; namely, the \TSBtree\ of Lomet and
+Salzberg~\cite{lomet:1989:tsb,lomet:1990:tsb-performance}, the MVBT of
+Becker et~al.~\cite{becker:1993:optimal,becker:1996:mvbt}, and the
+MVAS of Varman and Verma~\cite{varman:1997:multiversion}.
+\chapref{chapter:tmvbt} describes our transactional extension to
+the MVBT, and shows how the TMVBT index retains the optimality of the MVBT\@.
+In \chapref{chapter:cmvbt}, we present the concurrent multiversion \Btree,
+which is a fully concurrent index structure that is composed of the
+TMVBT index and a main-memory-resident versioned \Btree\ index 
+that is used for storing the updates of active transactions. 
+After that, in \chapref{chapter:performance}, we evaluate the performance of
+the CMVBT index and compare it to the \TSBtree. 
+We have implemented both indexes and present the results of our
+test runs on them.
+Finally, in \chapref{chapter:conclusions}, we give the conclusions
+of the research work.
+% and outline possible areas for future research.
+ 
+

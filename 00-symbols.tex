@@ -1,0 +1,73 @@
+%%=====================================================================
+%% List of symbols
+%%=====================================================================
+
+\begin{listofsymbols}
+
+\loxline{\comver}{The latest committed version of a multiversion
+database index}{def:maxcomver}
+
+\loxline{\actver}{The active version of a TMVBT index. 
+Updates to the index receive this version}{def:actver}
+
+\loxline{\stablever}{The most recent version that has been moved to the
+TMVBT from the VBT in a CMVBT index}{def:stablever}
+
+\loxline{\movever}{The version currently being moved from the
+VBT into the TMVBT in a CMVBT index}{def:movever}
+
+\loxline{\txid{T}}{The unique identifier of an active
+transaction~$T$}{def:txid}
+
+\loxline{\snapver{T}}{The snapshot version of transaction~$T$; i.e., the
+version that $T$ is reading}{def:snapver}
+
+\loxline{\commitver{T}}{The unique commit-time version assigned to
+transaction~$T$ upon committing}{def:commitver}
+
+\loxline{\capacity}{The logical capacity of a database page, i.e., how many
+entries fit to a page}{def:capacity}
+
+\loxline{\entries{v}}{The number of entries in the database that are alive
+at version~$v$}{def:entries}
+
+%\loxline{\actentries{p}}{The number of entries in page~$p$ that are alive
+% at version \actver}{def:entriespage}
+
+\loxline{\deletemark}{A special value used to record key
+deletions}{def:deletemark}
+
+\loxline{\rootstar}{A search structure that stores the page identifiers of
+the root pages of a multi-root multiversion index, indexed by the root page 
+versions}{def:rootstar}
+
+%$\children{p}$ & The set of children of page $p$\defpageref{def:children}\\
+
+%$\height{p}$ & The height of page~$p$. 
+%Leaf pages are at height~1\defpageref{def:height}\\
+
+%$\parent{p}$ & The set of parents of path~$p$. 
+%Pages in some multiversion indexes may have multiple
+%parents\defpageref{def:parent}\\
+
+\loxline{\kr{p}}{The key-range of page~$p$}{def:kr}
+
+\loxline{\vr{p}}{The version-range, or life span, of page~$p$}{def:vr}
+
+%$\kvr{p}$ & The key-version-range of page~$p$\defpageref{def:kvr}\\
+
+%$s$ & The split tolerance variable. 
+%Defines how many actions at least must be performed on a page~$p$ after
+%a structure-modification on~$p$ before a new structure-modification
+%operation on~$p$ is required\defpageref{def:split-tolerance}\\
+
+\loxline{\minlive}{The minimum number of live entries allowed on a single
+page of a multiversion index}{def:minlive}
+
+\loxline{\minsplit}{The minimum number of entries a page must contain
+immediately after an SMO}{def:minsplit}
+
+\loxline{\maxsplit}{The maximum number of entries a page may contain 
+immediately after an SMO}{def:maxsplit}
+
+\end{listofsymbols}

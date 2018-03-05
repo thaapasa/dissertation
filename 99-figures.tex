@@ -1,0 +1,362 @@
+\chapter{First images}
+\label{chapter:dummy-layout-text}
+
+% Explanation of the details of transactions on multiversion data.
+% The transaction model.
+% No implementation (index structure) details.
+
+The theory of general transaction processing in traditional 
+databases is well-defined and mature, and the basic principles are
+well presented in many
+textbooks~\cite{bernstein:1987:cc-n-r,gray:1993:transactionprocessing,papadimitriou:1986:cc-theory}.
+In this chapter, we concentrate on the theory of multiversion
+transaction processing, and highlight the differences to the classical
+transaction theory.
+The traditional read-write model assumes that transactions are sequences
+of reads and writes on data items, without distinguishing item deletions and
+insertions from
+updates~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory}.
+The theory of transaction processing in this dissertation is based on
+the recoverable transaction model presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, which in turn is based on the
+model proposed by C.~Mohan~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}.
+In this model, data-item insertions and deletions are made explicit,
+and structure-modification operations are included in the model.
+We assume the partially persistent transaction-time model, as
+described in the introduction.
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-snapshot.tex}
+\figcaption{Transaction in a snapshot database}{The transaction has
+executed the schedule $b w[a,\alpha,\alpha'] d[b] w[e,\epsilon] c$.}
+\label{fig:tx-snapshot}
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\input{images/tx-valid.tex}
+\figcaption{Transaction in a valid-time database}{The transaction has
+executed the schedule $b w[a,\alpha,\alpha'] d[b] w[e,\epsilon] c$.}
+\label{fig:tx-valid}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+\subfigure[A single-version \Btree\ index]{
+\input{images/btree-example}}
+\subfigure[A common design in multiversion indexes]{
+\label{fig:sv-mv-index-comparison:mv}
+\input{images/mv-example}}
+\figcaption{Comparison of single-version and multiversion indexes}{}
+\label{fig:sv-mv-index-comparison}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mv-height-decrease}
+  \figcaption{Search trees of different heights}
+  {Search trees of different versions in a multiversion index can
+  have different heights.}
+  \label{fig:mv-height-decrease}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+\input{images/mv-index-example}
+\figcaption{Structure of a balanced multiversion index}{}
+\label{fig:mv-index-example}
+\end{center}
+\end{figure}
+
+\chapter{Second images}
+
+\begin{figure}[htb]
+\begin{center}
+\subfigure[Level 1]{\input{images/mvbt-space-level-1.tex}
+\label{fig:mvbt-space-partition:level-1}}
+\subfigure[Level 2]{\input{images/mvbt-space-level-2.tex}
+\label{fig:mvbt-space-partition:level-2}}
+\figcaption{Partitioning of the key-version space in the MVBT}%
+{In the image, $\comver = v_6$, which is indicated by the open ends of the
+version ranges of pages $p_7$, $p_8$, and $p_{10}$.
+The level \num{2} image shows routers to page $p_5$ in pages $p_9$ and
+$p_{10}$.}
+\label{fig:mvbt-space-partition}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mvbt-problem}
+  \figcaption{\abbr{MVBT} problem scenario}{Insertion of key~4 causes
+  an invalid split.}
+  \label{fig:mvbt-invalid-split}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/mvbt-problem-solved}
+  \figcaption{Key split without version split in the TMVBT}%
+  {A key-split is triggered by the insertion of key~\num{4}.}
+  \label{fig:mvbt-invalid-split-solved}
+\end{center}
+\end{figure}
+
+\begin{figure}[!htb]
+\begin{center}
+\subfigure[Active index entries]{\input{images/tmvbt-active-index-entries.tex}
+\label{fig:tmvbt-active-entries:index}}
+\subfigure[Active leaf entries]{\input{images/tmvbt-active-leaf-entries.tex}
+\label{fig:tmvbt-active-entries:leaf}}
+\figcaption{Active entries in the TMVBT index}%
+{The index page contains three index entries with routers to pages $p_1$,
+$p_2$, and $p_3$. 
+The leaf page contains three entries, namely $e_1$, $e_2$, and $e_3$.}
+\label{fig:tmvbt-active-entries}
+\end{center}
+\end{figure}
+
+\chapter{Third images}
+
+\begin{figure}[!hbt]
+\begin{center}
+  \input{images/tmvbt-oper-1}
+  \figcaption{Example of a TMVBT index after insertions}
+  {
+  The page header shows the page identifier followed by (key range, version
+  range); 
+  the format of index-page entries is (key range, life span, page
+  identifier); and 
+  the format of leaf-page entries is (key, life span, data), but
+  the associated data has been left out for clarity. 
+  This TMVBT has been created by transaction~$T_1$
+  inserting keys~\range{1}{6} and transaction~$T_2$ inserting
+  keys~\num{7} and~\num{8}.
+  }
+  \label{fig:example-oper-1}
+\end{center}
+\end{figure}
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-oper-2}
+  \figcaption{\abbr{TMVBT} after inserting entry with key~\num{9}}
+  {
+  The format of the figure is the same as in \figref{fig:example-oper-1}.
+  White rectangles denote live pages, and gray rectangles denote dead pages.
+  Transaction~$T_2$ has caused a version-split on~$p_5$ by inserting
+  key~\num{9}.}
+  \label{fig:example-oper-2}
+\end{center}
+\end{figure}
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-oper-3}
+  \figcaption{\abbr{TMVBT} after deleting most of the entries}
+  {Transaction~$T_2$ deleted keys~\range{4}{9}, thus shrinking
+  the current-version search tree to a single page.}
+  \label{fig:example-oper-3}
+\end{center}
+\end{figure}
+
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-1}
+  \figcaption{Example of a TMVBT index after insertions}{In this
+  figure, transaction $T_1$ has inserted keys \range{1}{9}.}
+  \label{fig:tmvbt-example:1}
+\end{center}
+\end{figure*}
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-2}
+  \figcaption{Example of a TMVBT index after some deletions}{In this
+  figure, transaction $T_2$ has deleted keys \range{7}{9}.}
+  \label{fig:tmvbt-example:2}
+\end{center}
+\end{figure*}
+
+\begin{figure*}[htb]
+\begin{center}
+  \input{images/tmvbt-example-3}
+  \figcaption{Example of a TMVBT index after more insertions}{In this
+  figure, transaction $T_2$ has inserted keys \range{10}{15}.}
+  \label{fig:tmvbt-example:3}
+\end{center}
+\end{figure*}
+
+\begin{figure}[!htb]
+\begin{center}
+  \input{images/tmvbt-split-a.tex}
+  \figcaption{Key-splitting an active page~$p$}%
+  {The horizontal axis represents version ranges, and the vertical axis key
+  ranges.}
+ % [$p$ active, $\liveentries{p} = \capacity$]
+  \label{fig:split-active} 
+\end{center}
+\end{figure}
+
+\chapter{Fourth images}
+
+\begin{figure}[!htb]
+\begin{center}
+  \subfigure[$\minsplit \leq \liveentries{p} \leq
+  \maxsplit$]{\label{fig:split:is1}
+    \input{images/tmvbt-split-is1.tex}}
+  \subfigure[$\liveentries{p} > \maxsplit$]{\label{fig:split:is2} 
+    \input{images/tmvbt-split-is2.tex}}
+  \\
+  \subfigure[$s$ inactive, $\liveentries{p} < \minsplit$ and 
+    $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:split:imi1}
+    \input{images/tmvbt-split-imi1.tex}}
+  \subfigure[$s$ inactive, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:split:imi2}
+    \input{images/tmvbt-split-imi2.tex}}
+  \\
+  \subfigure[$s$ active, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:split:ima1}
+    \input{images/tmvbt-split-ima1.tex}}
+  \subfigure[$s$ active, $\liveentries{p} < \minsplit$ and  
+    $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:split:ima2}
+    \input{images/tmvbt-split-ima2.tex}}
+  \figcaption{Version-splitting an inactive page~$p$}
+  {The horizontal axis represents version ranges, and the vertical
+  axis key ranges. 
+  Case 
+  (a)~represents a version split, 
+  (b)~a version split followed by a key split,
+  (c)~a version split followed by a merge with an inactive sibling, 
+  (d)~a version split followed by a redistribution of live entries
+  with an inactive sibling, 
+  (e)~a version split followed by a merge with an active
+  sibling, and 
+  (f)~a version split followed by a redistribution of live entries
+  with an active sibling.}
+  \label{fig:split}
+\end{center}
+\end{figure}
+
+\begin{figure}[!htb]
+\begin{center}
+  \subfigure[$p$ inactive, $s$ active, $\liveentries{p} + \liveentries{s}
+  \leq \maxsplit$]{\label{fig:merge:ima1}
+    \input{images/tmvbt-merge-ima1.tex}}
+  \subfigure[$p$ inactive, $s$ active, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:ima2}
+    \input{images/tmvbt-merge-ima2.tex}}
+  \subfigure[$p$ inactive, $s$ inactive, $\liveentries{p} + \liveentries{s} \leq
+  \maxsplit$]{\label{fig:merge:imi1} 
+    \input{images/tmvbt-merge-imi1.tex}}
+  \subfigure[$p$ inactive, $s$ inactive, $\liveentries{p} + \liveentries{s} >
+  \maxsplit$]{\label{fig:merge:imi2}
+    \input{images/tmvbt-merge-imi2.tex}}
+  \figcaption{Merging an inactive page~$p$}
+  {The horizontal axis represents version ranges, and the vertical
+  axis key ranges.
+  Case
+  (a)~a represents a version split followed by a merge,
+  (b)~a version split followed by a redistribution of live entries,
+  (c)~a version split followed by a merge with an inactive
+  sibling, and
+  (d)~a version split followed by a redistribution of live entries
+  with an inactive sibling.}
+  \label{fig:merge-inactive}
+\end{center}
+\end{figure}
+
+
+The theory of general transaction processing in traditional 
+databases is well-defined and mature, and the basic principles are
+well presented in many
+textbooks~\cite{bernstein:1987:cc-n-r,gray:1993:transactionprocessing,papadimitriou:1986:cc-theory}.
+In this chapter, we concentrate on the theory of multiversion
+transaction processing, and highlight the differences to the classical
+transaction theory.
+The traditional read-write model assumes that transactions are sequences
+of reads and writes on data items, without distinguishing item deletions and
+insertions from
+updates~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory}.
+The theory of transaction processing in this dissertation is based on
+the recoverable transaction model presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, which in turn is based on the
+model proposed by C.~Mohan~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}.
+In this model, data-item insertions and deletions are made explicit,
+and structure-modification operations are included in the model.
+We assume the partially persistent transaction-time model, as
+described in the introduction.
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/cmvbt-setup}\\
+  \figcaption{The CMVBT index structure organization}
+  {User transactions issue queries both to the VBT and the
+  TMVBT indexes, but updates are performed only on the VBT\@.
+  A system maintenance transaction is run periodically to apply the
+  pending updates of committed transactions into the TMVBT index and to
+  delete them from the VBT\@.}
+  \label{fig:cmvbt-setup}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+%  \includegraphics[width=0.4\textwidth]{images/cmvbt-example}\\
+  \input{images/cmvbt-example}\\
+  \figcaption{Example of the logical contents of a CMVBT index}
+  {The database contains the updates of five committed versions, versions
+  \range{1}{5}. 
+  The TMVBT index contains all the updates of stable versions
+  \range{1}{3}, and the updates of committed transient versions \range{4}{5}
+  are still located in the VBT index, identified with transaction
+  identifiers \num{103} and~\num{101}.
+  The VBT additionally contains updates by two active updating transactions
+  that have transaction identifiers \num{102} and~\num{104}.}
+  \label{fig:cmvbt-example}
+\end{center}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{center}
+  \input{images/cmvbt-example-contents}
+  \figcaption{Example of data entries stored in a CMVBT index}
+  {This example represents the same situation as
+  \figref{fig:cmvbt-example}.
+  The format of entries in the TMVBT is (key, life span, data), and the
+  format of entries in the VBT is (key, transaction identifier, update).
+  In addition to the committed transactions, the VBT also contains the
+  updates of two active transactions with transaction identifiers \num{102}
+  and \num{104}.}
+  \label{fig:cmvbt-contents}
+\end{center}
+\end{figure}
+
+The theory of general transaction processing in traditional 
+databases is well-defined and mature, and the basic principles are
+well presented in many
+textbooks~\cite{bernstein:1987:cc-n-r,gray:1993:transactionprocessing,papadimitriou:1986:cc-theory}.
+In this chapter, we concentrate on the theory of multiversion
+transaction processing, and highlight the differences to the classical
+transaction theory.
+The traditional read-write model assumes that transactions are sequences
+of reads and writes on data items, without distinguishing item deletions and
+insertions from
+updates~\cite{bernstein:1987:cc-n-r,papadimitriou:1986:cc-theory}.
+The theory of transaction processing in this dissertation is based on
+the recoverable transaction model presented by Sippu and
+Soisalon-Soininen~\cite{sippu:2001:theory}, which in turn is based on the
+model proposed by C.~Mohan~\cite{mohan:1990:aries-kvl,mohan:1992:aries-im}.
+In this model, data-item insertions and deletions are made explicit,
+and structure-modification operations are included in the model.
+We assume the partially persistent transaction-time model, as
+described in the introduction.
